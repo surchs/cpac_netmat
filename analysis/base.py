@@ -7,12 +7,14 @@ classes for the analysis
 '''
 import os
 import re
+import time
 import glob
 import gzip
 import copy
 import cPickle
 import numpy as np
 from sklearn import svm
+import multiprocessing as mp
 import sklearn.grid_search as gs
 import sklearn.cross_validation as cv
 import sklearn.feature_selection as fs
@@ -329,6 +331,12 @@ class Analysis(object):
 
             # edit the network parameters
             tempNetwork.gridCv = self.gridCv
+            tempNetwork.maxFeat = self.maxFeat
+            tempNetwork.numberCores = self.numberCores
+            tempNetwork.runCores = self.runCores
+            tempNetwork.kernel = self.kernel
+            tempNetwork.C = self.cValue
+            tempNetwork.E = self.eValue
 
             # and save the network object to the analysis
             self.networks[network] = tempNetwork
@@ -353,12 +361,14 @@ class Network(object):
         self.maxFeat = None
         self.numberCores = None
         self.runCores = None
+        self.kernel = None
+        self.cValue = None
+        self.eValue = None
 
     def makeRuns(self):
         '''
         Method to create and store run objects for later execution
         '''
-
         runID = 1
         for cvInstance in self.cvObject:
             # create a new instance of the fold class
@@ -393,9 +403,9 @@ class Network(object):
             run.runCv = self.runCv
 
             # model parameters
-            run.kernel = None
-            run.C = None
-            run.E = 0.000001
+            run.kernel = self.kernel
+            run.C = self.cValue
+            run.E = self.eValue
 
             # run the prepare run method
             run.prepareRun()
@@ -404,6 +414,40 @@ class Network(object):
 
             # +1 on the run ID
             runID += 1
+
+    def runRun(self, run):
+        '''
+        Method to run an individual run
+        '''
+        run.selectFeatures()
+        run.selectParameters()
+        run.trainModel()
+        run.testModel()
+        run.getError()
+
+        return run
+
+    def executeRuns(self):
+        '''
+        Method to execute the previously generated runs in a parallel fashion
+        '''
+        # first see how many runs we have and how many cores we may use so
+        # we don't exceed with the cores per run
+        parallelRuns = np.floor(self.numberCores / self.runCores)
+
+        start = time.time()
+        pool = mp.Pool(processes=parallelRuns)
+        resultList = pool.map(self.runRun, self.runs.values())
+        stop = time.time()
+        elapsed = stop - start
+
+        print('Running Network ' + self.name + ' is done. This took '
+              + str(elapsed) + ' seconds')
+
+        # map back the results
+        for run in resultList:
+            # loop through the shit
+            self.runs[run.name] = run
 
 
 class Run(object):
