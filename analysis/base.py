@@ -399,9 +399,6 @@ class Network(object):
 
             # run the prepare run method
             run.prepareRun()
-            # and set the necessary parameters
-
-
             # store the run in the Network object
             self.runs[run.number] = run
 
