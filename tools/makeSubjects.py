@@ -13,7 +13,7 @@ import glob
 import gzip
 import cPickle
 import multiprocessing as mp
-from cpac_processing.preprocessing import base
+import cpac_processing.preprocessing as pp
 
 
 def runDerivative(args):
@@ -37,9 +37,9 @@ def runDerivative(args):
             + ' ' ' was run successfully')
 
 
-def Main(searchDir, configFile, maskDir, outDir):
+def Main(searchDir, templateFile, maskDir, outDir):
     # template string to search for
-    pathFile = open(configFile)
+    pathFile = open(templateFile)
     pathLines = pathFile.readlines()
 
     masks = {}
@@ -63,7 +63,7 @@ def Main(searchDir, configFile, maskDir, outDir):
             if not pipeline in pipeDict.keys():
                 pipeDict[pipeline] = {}
 
-            #generate derivative dict entry
+            # generate derivative dict entry
             if not deriName in pipeDict[pipeline].keys():
                 pipeDict[pipeline][deriName] = {}
 

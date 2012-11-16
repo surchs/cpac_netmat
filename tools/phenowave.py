@@ -21,12 +21,14 @@ class Scan:
         self.useAnat = None
         self.anatId = None
         self.base = None
-        self.phenoString
-        self.condensePheno
+        self.phenoString = None
+        self.condensePheno = None
 
 
 def Main(loadFile, checkDir, saveFile):
     qcFile = open(loadFile, 'rb')
+    titleLine = qcFile.readline()
+    print(titleLine)
     qcLines = qcFile.readlines()
 
     # List of passing subjects
@@ -182,7 +184,6 @@ def Main(loadFile, checkDir, saveFile):
     pass
 
     subPhenoList = []
-    useSubjects = {}
     # now we need to loop over the subjects again to get the session with
     # the session with the smallest extension (nothing for the first)
     for subject in subjectDict.keys():
@@ -195,10 +196,24 @@ def Main(loadFile, checkDir, saveFile):
         # use the first in the ordered sessionNames for further analysis
         session = sessionNames[0]
         scanID = sessionDict[session]
-        useSubjects[subject] = scanID.phenoString
-        subPhenoList.append(scanID.phenoString)
+        # manipulate the pheno List
+        subLine = scanID.phenoString
+        changeLine = subLine.strip().split(',')
+        # loop through the columns and change only the first one
+        for i in range(len(changeLine)):
+            if i == 0:
+                # just put the subject name instead of the line content
+                outLine = (subject + ',')
+            else:
+                outLine = (outLine + changeLine[i] + ',')
+
+        # done with the file, remove last whitespace and add newline character
+        outLine = (outLine[:-1] + '\n')
+        subPhenoList.append(outLine)
 
     outFile = open(saveFile, 'wb')
+    # first get the titleLine in there
+    outFile.write(titleLine)
     for subPheno in subPhenoList:
         outFile.write(subPheno)
     outFile.close()
