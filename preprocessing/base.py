@@ -118,7 +118,9 @@ class Subject(object):
         then clear it out again
         '''
         maskFile = gzip.open(maskPath, 'rb')
-        self.mask = cPickle.load(maskFile)
+        tempMask = cPickle.load(maskFile)
+        maskName = tempMask.name
+        self.masks[maskName] = tempMask
 
 
 class Derivative(object):
