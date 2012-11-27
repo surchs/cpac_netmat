@@ -226,11 +226,39 @@ class Mask(object):
         remaining networkNodes to the network 'unassigned' which is not
         included in the analysis
         '''
-        self.networkNodes[networkName] = nodeList
+        # check if the nodes in nodeList are part of the mask or already in
+        # other networks
+        goodNodes = np.array([])
+        for node in nodeList:
+            if not node in self.nodes:
+                print('The node ' + str(node) + ' is not in this mask')
+                continue
+
+            elif (len(self.networkNodes.keys()) == 0 and
+                  not node in goodNodes):
+                # no networks assigned so far, just check against goodNodes
+                goodNodes = np.append(goodNodes, node)
+
+            for network in self.networkNodes.keys():
+                if node in self.networkNodes[network]:
+                    print('Node ' + str(node) + ' already in '
+                          + network + ' network')
+                    break
+                else:
+                    goodNodes = np.append(goodNodes, node)
+
+        # check if anything is left in the nodelist
+        if len(goodNodes) == 0:
+            print('\nThere are no nodes stored for ' + networkName + ' network')
+        else:
+            print('\n' + str(len(goodNodes)) + ' nodes will be stored for '
+                  + networkName + ' network')
+            self.networkNodes[networkName] = goodNodes
+
         # check if the remaining nodes are all stored inside other networkNodes
         tempNodeArray = np.array([])
-        for networkName in self.networkNodes.keys():
-            tempNodes = self.networkNodes[networkName]
+        for network in self.networkNodes.keys():
+            tempNodes = self.networkNodes[network]
             # make the loop independent of array or list type
             for node in tempNodes:
                 tempNodeArray = np.append(tempNodeArray, node)
