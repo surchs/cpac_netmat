@@ -13,7 +13,7 @@ import glob
 import gzip
 import cPickle
 import multiprocessing as mp
-import cpac_processing.preprocessing as pp
+import cpac_netmat.preprocessing as pp
 
 
 def runDerivative(args):
