@@ -42,37 +42,39 @@ class Study(object):
         self.masks = {}
         self.maskedSubjects = {}
 
-    def getSubjectPaths(self):
+    def makeSubjectPaths(self):
         '''
-        Method to get the subject file paths
-        Checks what mask a subject is associated with and then loads both the
-        subject and the mask
+        Method to generate the paths to the subject files.
+        This either reads in all the directory/subjectfiles.sub in a given
+        directory (self.dataPath) or only those given by a subject list
+        (self.subjectList)
 
-        since the subject folders contain one file per mask, we always loop
-        through the subject files (*.sub) inside any selected subject directory
+        The method then checks what masks a subject is associated with and
+        then loads both the subject and the mask
         '''
 
         # check the parameters first
-        if not os.path.isdir(self.subjectPath):
-            print('subjectPath ' + self.subjectPath + ' doesn\'t exist')
+        if not os.path.isdir(self.dataPath):
+            print('subjectPath ' + self.dataPath + ' doesn\'t exist')
 
         if self.subjectList == None:
             # no subjects specified, take all you can get in the dir
-            print('Using all subjects in ' + os.path.abspath(self.subjectPath))
+            print('Using all subjects in ' + os.path.abspath(self.dataPath))
             # here we can set the template for the subject directory
-            if self.subjectPath.endswith('/'):
-                self.subjectPaths = os.path.abspath(glob.glob((self.subjectPath
+            if self.dataPath.endswith('/'):
+                self.subjectPaths = os.path.abspath(glob.glob((self.dataPath
                                                                + '*/*.sub')))
             else:
-                self.subjectPaths = os.path.abspath(glob.glob((self.subjectPath
+                self.subjectPaths = os.path.abspath(glob.glob((self.dataPath
                                                                + '/*/*.sub')))
 
         else:
             # subject file specified, take only the specified ones
+            # check whether the specified sb
             subjectFile = open(self.subjectList, 'rb')
-            tempSubjectFileList = subjectFile.readlines()
+            subjectFileList = subjectFile.readlines()
 
-            for line in tempSubjectFileList:
+            for line in subjectFileList:
                 # currently only one column expected that contains the subject
                 # name
                 tempSubName = line.strip()

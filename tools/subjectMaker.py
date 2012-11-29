@@ -148,7 +148,6 @@ def Main(searchDir, templateFile, phenoFile, maskDir, outDir, nProcs):
 
         pool = mp.Pool(processes=nProcs)
         resultList = pool.map(runDerivative, runList)
-        print resultList
 
 
 if __name__ == '__main__':
