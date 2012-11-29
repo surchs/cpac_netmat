@@ -92,11 +92,10 @@ class Study(object):
 
     def getSubjects(self):
         '''
-        Method to get the subjects that are listed in the subject paths, check
-        what mask they belong to, store them accordingly and store the mask if
-        it hasn't been stored yet.
+        Method to get the subjects that are listed in the subject paths.
 
-        If it has been stored, then check if it is identical to the mask
+        Now that we can store multiple masks inside each subject it is no
+        longer necessary to check for the masks
         '''
         for subjectPath in self.subjectPaths:
             # open the file
