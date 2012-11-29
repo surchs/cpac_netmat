@@ -1,4 +1,0 @@
-functional_connectivity /scan_func_rest/func/bandpass*/ functional_mni.nii.gz
-regional_homogeneity /scan_func_rest/reho/bandpass*/fwhm*/ reho_Z_to_standard_smooth.nii.gz
-low_frequency_amplitude /scan_func_rest/alff/hp*/lp*/fwhm*/ alff_Z_to_standard_smooth.nii.gz
-fractional_alff /scan_func_rest/alff/hp*/lp*/fwhm*/ falff_Z_to_standard_smooth.nii.gz
