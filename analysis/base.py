@@ -63,10 +63,10 @@ class Study(object):
             # here we can set the template for the subject directory
             if self.dataPath.endswith('/'):
                 self.subjectPaths = os.path.abspath(glob.glob((self.dataPath
-                                                               + '*/*.sub')))
+                                                        + '*/*.sub'))[0])
             else:
                 self.subjectPaths = os.path.abspath(glob.glob((self.dataPath
-                                                               + '/*/*.sub')))
+                                                        + '/*/*.sub'))[0])
 
         else:
             # subject file specified, take only the specified ones
