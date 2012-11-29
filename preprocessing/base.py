@@ -362,8 +362,8 @@ class Mask(object):
         sameStatus = False
         if isinstance(compareMask, Mask):
             # OK, this is from the same class
-            if (self.mask == compareMask.mask and
-                self.networkNodes == compareMask.networkNodes and
+            if (self.mask.all() == compareMask.mask.all() and
+                self.networkNodes.all() == compareMask.networkNodes.all() and
                 self.name == compareMask.name):
                 # they are the same mask
                 sameStatus = True
