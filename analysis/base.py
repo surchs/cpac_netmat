@@ -78,8 +78,13 @@ class Study(object):
                 # currently only one column expected that contains the subject
                 # name
                 tempSubName = line.strip()
-                tempSubPath = os.path.join(os.path.abspath(self.subjectPath),
+                tempSubPath = os.path.join(os.path.abspath(self.dataPath),
                                            tempSubName)
+                # check if the subject path exists
+                if not os.path.isdir(tempSubPath):
+                    print(tempSubName + ' is not in ' + self.dataPath)
+                    continue
+
                 tempSubjects = glob.glob((tempSubPath + '/*.sub'))
                 # loop through the results
                 for tempSubject in tempSubjects:
