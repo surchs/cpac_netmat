@@ -102,34 +102,37 @@ class Study(object):
             tempSubFile = gzip.open(subjectPath, 'rb')
             tempSubject = cPickle.load(tempSubFile)
             tempSubName = tempSubject.name
-            # get the mask in the subject
-            tempSubMask = copy.copy(tempSubject.mask)
-            tempMaskName = tempSubMask.name
-            # check if the mask name already exists in the saved masks
-            if tempMaskName in self.masks.keys():
-                # it is already in, compare it to the saved mask
-                if not self.masks[tempMaskName].sameSame(tempSubMask):
-                    # this mask is different from the one we already saved and
-                    # this is a problem - alert and skip the subject
-                    # (not optimal, I know - its an order thing... fix later)
-                    print('The mask: ' + tempMaskName + ' of subject '
-                          + tempSubName + ' is different from the saved'
-                          + ' mask in our repository')
-                    continue
-            else:
-                # the mask is not saved yet, so do this now
-                self.masks[tempMaskName] = tempSubMask
 
-            # now we can continue processing the subjects
+            # get the masks in the subject
+            for tempSubMask in tempSubject.masks.values():
+                tempMaskName = tempSubMask.name
+                # check if the mask name already exists in the saved masks
+                if tempMaskName in self.masks.keys():
+                    # it is already in, compare it to the saved mask
+                    if not self.masks[tempMaskName].sameSame(tempSubMask):
+                        # this mask is different from the one we already saved
+                        # and this is a problem - alert and skip the subject
+                        # (not optimal, I know - its an order thing...
+                        # fix later)
+                        print('The mask: ' + tempMaskName + ' of subject '
+                              + tempSubName + ' is different from the saved'
+                              + ' mask in our repository')
+                        continue
 
-            # check if the mask exists already for the maskedSubjects dict
-            if not tempMaskName in self.maskedSubjects.keys():
-                # create the entry and make it another dictionary
-                self.maskedSubjects[tempMaskName] = {}
+                else:
+                    # the mask is not saved yet, so do this now
+                    self.masks[tempMaskName] = tempSubMask
 
-            # now get rid of the mask
-            tempSubject.mask = None
-            self.maskedSubjects[tempMaskName][tempSubName] = tempSubject
+                # now we can continue processing the subjects
+                # check if there is already a list of subjects for this mask
+                if not tempMaskName in self.maskedSubjects.keys():
+                    # create the entry and make it a list
+                    self.maskedSubjects[tempMaskName] = []
+
+                # now get rid of the mask and append the subject to the
+                # correct list
+                tempSubject.mask = None
+                self.maskedSubjects[tempMaskName].append(tempSubName)
 
         # done with the processing, tell the world about it and give a summary
         print('Done with fetching subjects, this is what it looks like')
