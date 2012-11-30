@@ -284,7 +284,7 @@ class Analysis(object):
         self.crossvalidate = None
         self.cvObject = None
         self.kernel = None
-        self.subjects = None
+        self.subjects = {}
         self.mask = mask
         self.cValue = None
         self.eValue = None
