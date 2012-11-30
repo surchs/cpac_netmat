@@ -240,7 +240,7 @@ class Study(object):
                 # copy the original to make it independent from changes
                 tempSub = copy.copy(self.maskedSubjects[mask][subject])
                 tempDerivatives = tempSub.derivativeMasks[mask]
-                if not derivative in tempDerivatives:
+                if not derivative in tempDerivatives.keys():
                     # something is wrong with this subject
                     print(subject + ' doesn\'t have derivative ' + derivative)
                     print('it would have these:')
