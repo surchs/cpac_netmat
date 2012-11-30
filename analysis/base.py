@@ -273,7 +273,7 @@ class Analysis(object):
     different analyses
     '''
 
-    def __init__(self, name):
+    def __init__(self, name, mask):
         self.name = name
         # parameters to be determined later
         self.derivative = None
@@ -282,7 +282,7 @@ class Analysis(object):
         self.cvObject = None
         self.kernel = None
         self.subjects = None
-        self.mask = None
+        self.mask = mask
         self.cValue = None
         self.eValue = None
         self.gridCv = None
