@@ -206,8 +206,8 @@ class Study(object):
             featureSelect = configLine[4]
             crossvalidate = configLine[5]
             kernel = configLine[6]
-            cValue = int(configLine[7])
-            eValue = int(configLine[8])
+            cValue = float(configLine[7])
+            eValue = float(configLine[8])
             gridCv = int(configLine[9])
             runCores = int(configLine[10])
             maxFeat = int(configLine[11])
