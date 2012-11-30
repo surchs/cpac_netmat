@@ -217,9 +217,9 @@ class Study(object):
                 # the mask is not here, alert
                 print('\nThe mask ' + mask + ' for analysis ' + analysisName
                       + ' is not available in the study object ' + self.name)
-            else:
-                # get the mask ready
-                analysisMask = self.masks[mask]
+
+            # get the mask ready
+            analysisMask = self.masks[mask]
 
             # make an analysis object and set parameters
             tempAnalysis = Analysis(analysisName, analysisMask)
