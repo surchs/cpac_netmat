@@ -147,7 +147,7 @@ class Study(object):
             run += 1
             sys.stdout.write('\rDone loading subject ' + tempSubName
                              + ' : ' + str(run) + '/'
-                             + str(len(self.subjectPaths)))
+                             + str(len(self.subjectPaths)) + '           ')
             sys.stdout.flush()
 
         # done with the processing, tell the world about it and give a summary
