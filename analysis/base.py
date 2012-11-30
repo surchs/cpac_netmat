@@ -208,7 +208,7 @@ class Study(object):
             derivative = configLine[2]
             mask = configLine[3]
             featureSelect = configLine[4]
-            crossvalidate = configLine[5]
+            crossvalidate = int(configLine[5])
             featureFocus = configLine[6]
             kernel = configLine[7]
             cValue = float(configLine[8])
@@ -341,7 +341,7 @@ class Analysis(object):
             # and now loop through the subjects
             for subject in self.subjects.keys():
                 tempSub = self.subjects[subject]
-                tempDer = tempSub.derivative
+                tempDer = tempSub.derivative.feature
                 tempInd = self.mask.networkIndices[network]
                 tempFeat = {}
                 # see if it is a matrix or vector
