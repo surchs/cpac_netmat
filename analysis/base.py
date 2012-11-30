@@ -180,12 +180,16 @@ class Study(object):
             5) mode of crossvalidation over subjects
                 1  - LOOCV
                 >1 - k-Fold according to number
-            6) what kernel to use
-            7) C value to begin with in grid search for SVM model
-            8) E value to use in SVM model
-            9) number of crossvalidation for grid search in run
-            10) number of cores to use per run
-            11) max features to use
+            6) what feature set to use
+                - within: only connections within the network
+                - between: only connections of network nodes with outside nodes
+                - whole: all connections of network nodes (within + between)
+            7) what kernel to use
+            8) C value to begin with in grid search for SVM model
+            9) E value to use in SVM model
+            10) number of crossvalidation for grid search in run
+            11) number of cores to use per run
+            12) max features to use
         '''
 
         self.configFile = open(configFile, 'rb')
@@ -205,12 +209,13 @@ class Study(object):
             mask = configLine[3]
             featureSelect = configLine[4]
             crossvalidate = configLine[5]
-            kernel = configLine[6]
-            cValue = float(configLine[7])
-            eValue = float(configLine[8])
-            gridCv = int(configLine[9])
-            runCores = int(configLine[10])
-            maxFeat = int(configLine[11])
+            featureFocus = configLine[6]
+            kernel = configLine[7]
+            cValue = float(configLine[8])
+            eValue = float(configLine[9])
+            gridCv = int(configLine[10])
+            runCores = int(configLine[11])
+            maxFeat = int(configLine[12])
 
             # check if the desired mask is present in the Study Object
             if not mask in self.masks.keys():
@@ -227,6 +232,7 @@ class Study(object):
             tempAnalysis.derivative = derivative
             tempAnalysis.featureSelect = featureSelect
             tempAnalysis.crossvalidate = crossvalidate
+            tempAnalysis.featureFocus = featureFocus
             tempAnalysis.kernel = kernel
             tempAnalysis.cValue = cValue
             tempAnalysis.eValue = eValue
@@ -282,6 +288,7 @@ class Analysis(object):
         self.derivative = None
         self.featureSelect = None
         self.crossvalidate = None
+        self.featureFocus = None
         self.cvObject = None
         self.kernel = None
         self.subjects = {}
@@ -336,6 +343,7 @@ class Analysis(object):
                 tempSub = self.subjects[subject]
                 tempDer = tempSub.derivative
                 tempInd = self.mask.networkIndices[network]
+                tempFeat = {}
                 # see if it is a matrix or vector
                 if len(tempDer.shape) == 1:
                     # it's a vector we have to cut it up into pieces
@@ -354,6 +362,7 @@ class Analysis(object):
                     tempMask = np.tril(tempMask, -1)
                     # and put it in the variable
                     tempWithin = tempWithinNet[tempMask == 1]
+
                     # now for between - delete indices along 1st axis
                     tempBetweenNet = np.delete(tempNet, tempInd, 1)
                     # now stretch it out
@@ -368,10 +377,16 @@ class Analysis(object):
                           + self.name + ' with subject ' + subject)
                     continue
 
+                tempFeat['within'] = tempWithin
+                tempFeat['between'] = tempBetween
+                tempFeat['whole'] = tempWhole
                 # write the result back into the subject
-                tempSub.derivative['within'] = tempWithin
-                tempSub.derivative['between'] = tempBetween
-                tempSub.derivative['whole'] = tempWhole
+                # use a new attribute - self.feature
+                # depending on the feature focus
+                if self.featureFocus:
+                    tempSub.feature = tempFeat[self.featureFocus]
+                else:
+                    tempSub.feature = tempFeat['whole']
 
                 # and write the stuff to the network
                 tempNetwork.subjects[subject] = tempSub
@@ -563,7 +578,7 @@ class Run(object):
         # train first, prepare storage
         for subject in self.trainSubs:
             tempSub = self.train[subject]
-            tempFeature = tempSub.derivative
+            tempFeature = tempSub.feature
             tempPheno = tempSub.pheno[self.pheno]
             if not self.trainFeature:
                 # self.trainFeature doesn't exist, make it happen
@@ -583,7 +598,7 @@ class Run(object):
         # now the same for test set\
         for subject in self.testSubs:
             tempSub = self.test[subject]
-            tempFeature = tempSub.derivative
+            tempFeature = tempSub.feature
             tempPheno = tempSub.pheno[self.pheno]
             if not self.testFeature:
                 # self.testFeature doesn't exist, make it happen

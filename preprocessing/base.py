@@ -31,6 +31,7 @@ class Subject(object):
         self.derivativeMasks = {}
         # attribute used during the analysis
         self.derivative = {}
+        self.feature = None
         self.network = None
         self.analysisDerivative = None
 
