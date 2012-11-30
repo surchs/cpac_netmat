@@ -88,7 +88,7 @@ class Study(object):
                 for tempSubject in tempSubjects:
                     self.subjectPaths.append(os.path.abspath(tempSubject))
 
-        print(self.subjectPaths)
+        print('Finished loading ' + str(len(self.subjectPaths)) + ' subjects')
 
     def getSubjects(self):
         '''
