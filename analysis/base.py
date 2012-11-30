@@ -135,13 +135,13 @@ class Study(object):
                 # now we can continue processing the subjects
                 # check if there is already a list of subjects for this mask
                 if not tempMaskName in self.maskedSubjects.keys():
-                    # create the entry and make it a list
-                    self.maskedSubjects[tempMaskName] = []
+                    # create the entry and make it a dictionary
+                    self.maskedSubjects[tempMaskName] = {}
 
                 # now get rid of the mask and append the subject to the
                 # correct list
                 tempSubject.mask = None
-                self.maskedSubjects[tempMaskName].append(tempSubName)
+                self.maskedSubjects[tempMaskName][tempSubName] = tempSubject
 
             # done with the subject, print a quick notice
             run += 1
@@ -157,7 +157,8 @@ class Study(object):
         for mask in self.maskedSubjects.keys():
             maskString = (maskString
                           + '\n    ' + mask + ' : '
-                          + str(len(self.maskedSubjects[mask])) + ' subjects')
+                          + str(len(self.maskedSubjects[mask].keys()))
+                          + ' subjects')
         print(maskString)
         if len(problemList) > 0:
             print('There were ' + str(len(problemString)) + ' subjects with'
@@ -238,20 +239,30 @@ class Study(object):
             for subject in self.maskedSubjects[mask].keys():
                 # copy the original to make it independent from changes
                 tempSub = copy.copy(self.maskedSubjects[mask][subject])
-                if not derivative in tempSub.derivatives.keys():
+                tempDerivatives = tempSub.derivativeMasks[mask]
+                if not derivative in tempDerivatives:
                     # something is wrong with this subject
                     print(subject + ' doesn\'t have derivative ' + derivative)
+                    continue
                 else:
                     # nothing wrong with this one - assign the correct
                     # derivative and delete the rest
-                    tempSub.derivative = tempSub.derivatives[derivative]
-                    tempSub.derivatives = None
+                    tempSub.derivative = tempDerivatives[derivative]
+                    tempSub.derivativeMasks[mask] = None
                     tempSubs[subject] = tempSub
 
             tempAnalysis.subjects = tempSub
             # and store the object in the dictionary
             self.analyses[tempAnalysis.name] = tempAnalysis
-        print(self.analyses.keys())
+        # Done creating analyses
+        print('Done creating all the analyses')
+        aString = 'Here are all the analyses we presently have in the study:'
+        for analysis in self.analyses.keys():
+            tempAnalysis = self.analyses[analysis]
+            aString = (aString +
+                       '\n    ' + tempAnalysis.name + ' : '
+                       + str(len(tempAnalysis.subjects.keys())) + ' subjects')
+        print(aString)
 
 
 class Analysis(object):
