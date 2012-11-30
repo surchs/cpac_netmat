@@ -243,8 +243,9 @@ class Study(object):
                 if not derivative in tempDerivatives:
                     # something is wrong with this subject
                     print(subject + ' doesn\'t have derivative ' + derivative)
-                    print('it would have these: ' + '\n'
-                          + tempDerivatives.keys())
+                    print('it would have these:')
+                    for derivative in tempDerivatives.keys():
+                        print(derivative)
                     continue
                 else:
                     # nothing wrong with this one - assign the correct
