@@ -195,7 +195,7 @@ class Study(object):
 
         # loop over the lines
         for line in tempConfigLines:
-            configLine = line.strip().split()
+            configLine = line.strip().split(',')
             if '#' in line or re.match('^\n', line):
                 # this is a comment, keep going
                 continue
