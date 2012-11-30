@@ -7,6 +7,7 @@ classes for the analysis
 '''
 import os
 import re
+import sys
 import time
 import glob
 import gzip
@@ -99,6 +100,7 @@ class Study(object):
         '''
         problemString = 'These were the subjects that caused problems:'
         problemList = []
+        run = 0
         for subjectPath in self.subjectPaths:
             # open the file
             tempSubFile = gzip.open(subjectPath, 'rb')
@@ -142,7 +144,10 @@ class Study(object):
                 self.maskedSubjects[tempMaskName].append(tempSubName)
 
             # done with the subject, print a quick notice
-            print('Done loading subject ' + tempSubName)
+            run += 1
+            sys.stdout.write('Done loading subject ' + tempSubName
+                             + ' : ' + str(run) + '/'
+                             + str(len(self.subjectPaths)))
 
         # done with the processing, tell the world about it and give a summary
         print('\n\nDone with fetching subjects'
