@@ -354,7 +354,7 @@ class Analysis(object):
                 elif len(tempDer.shape) == 2:
                     # it's a matrix - this shit is more difficult
                     # first get the rows belonging to the network
-                    tempNet = tempDer.feature[tempInd, ...]
+                    tempNet = tempDer[tempInd, ...]
                     # then get the matrix belonging to the within features
                     tempWithinNet = tempNet[..., tempInd]
                     # and now only take the lower triangle
