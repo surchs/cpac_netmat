@@ -207,15 +207,16 @@ class Study(object):
             analysisName = configLine[1]
             derivative = configLine[2]
             mask = configLine[3]
-            featureSelect = configLine[4]
-            crossvalidate = int(configLine[5])
-            featureFocus = configLine[6]
-            kernel = configLine[7]
-            cValue = float(configLine[8])
-            eValue = float(configLine[9])
-            gridCv = int(configLine[10])
-            runCores = int(configLine[11])
-            maxFeat = int(configLine[12])
+            pheno = configLine[4]
+            featureSelect = configLine[5]
+            crossvalidate = int(configLine[6])
+            featureFocus = configLine[7]
+            kernel = configLine[8]
+            cValue = float(configLine[9])
+            eValue = float(configLine[10])
+            gridCv = int(configLine[11])
+            runCores = int(configLine[12])
+            maxFeat = int(configLine[13])
 
             # check if the desired mask is present in the Study Object
             if not mask in self.masks.keys():
@@ -231,6 +232,7 @@ class Study(object):
 
             tempAnalysis.derivative = derivative
             tempAnalysis.featureSelect = featureSelect
+            tempAnalysis.pheno = pheno
             tempAnalysis.crossvalidate = crossvalidate
             tempAnalysis.featureFocus = featureFocus
             tempAnalysis.kernel = kernel
@@ -287,6 +289,7 @@ class Analysis(object):
         # parameters to be determined later
         self.derivative = None
         self.featureSelect = None
+        self.pheno = None
         self.crossvalidate = None
         self.featureFocus = None
         self.cvObject = None
@@ -300,6 +303,7 @@ class Analysis(object):
         self.runCores = None
         self.maxFeat = None
         self.networks = {}
+        self.cvObject = None
 
     def makeCrossvalidate(self):
         if self.crossvalidate == 1:
@@ -399,6 +403,7 @@ class Analysis(object):
             tempNetwork.kernel = self.kernel
             tempNetwork.C = self.cValue
             tempNetwork.E = self.eValue
+            tempNetwork.pheno = self.pheno
 
             # and save the network object to the analysis
             self.networks[network] = tempNetwork
@@ -419,6 +424,7 @@ class Network(object):
         # parameters for the runs
         self.E = None
         self.C = None
+        self.pheno = None
         self.gridCv = None
         self.maxFeat = None
         self.numberCores = None
@@ -462,12 +468,13 @@ class Network(object):
             # set the necessary parameters
             run.maxFeat = self.maxFeat
             run.runCores = self.runCores
-            run.runCv = self.runCv
+            run.runCv = self.gridCv
 
             # model parameters
             run.kernel = self.kernel
             run.C = self.cValue
             run.E = self.eValue
+            run.pheno = self.pheno
 
             # run the prepare run method
             run.prepareRun()
@@ -540,10 +547,10 @@ class Run(object):
         self.test = None
 
         # processing parameters
-        self.pheno = None
         self.maxFeat = 2000
         self.runCores = 2
         self.runCv = 5
+        self.pheno = None
 
         # model parameters
         self.kernel = None
