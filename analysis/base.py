@@ -254,7 +254,7 @@ class Study(object):
                     tempSub.derivativeMasks[mask] = None
                     tempSubs[subject] = tempSub
 
-            tempAnalysis.subjects[subject] = tempSub
+                    tempAnalysis.subjects[subject] = tempSub
             # and store the object in the dictionary
             self.analyses[tempAnalysis.name] = tempAnalysis
         # Done creating analyses
