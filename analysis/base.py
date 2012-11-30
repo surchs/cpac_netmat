@@ -141,8 +141,11 @@ class Study(object):
                 tempSubject.mask = None
                 self.maskedSubjects[tempMaskName].append(tempSubName)
 
+            # done with the subject, print a quick notice
+            print('Done loading subject ' + tempSubName)
+
         # done with the processing, tell the world about it and give a summary
-        print('Done with fetching subjects'
+        print('\n\nDone with fetching subjects'
               + '\nwe have ' + str(len(self.maskedSubjects.keys())) + ' masks')
         maskString = 'These are the masks we have:'
         for mask in self.maskedSubjects.keys():
