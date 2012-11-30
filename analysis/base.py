@@ -97,6 +97,8 @@ class Study(object):
         Now that we can store multiple masks inside each subject it is no
         longer necessary to check for the masks
         '''
+        problemString = 'These were the subjects that caused problems:'
+        problemList = []
         for subjectPath in self.subjectPaths:
             # open the file
             tempSubFile = gzip.open(subjectPath, 'rb')
@@ -117,6 +119,11 @@ class Study(object):
                         print('The mask: ' + tempMaskName + ' of subject '
                               + tempSubName + ' is different from the saved'
                               + ' mask in our repository')
+
+                        if not tempSubName in problemList:
+                            problemList.append(tempSubName)
+                            problemString = (problemString
+                                         + '\n' + tempSubName)
                         continue
 
                 else:
@@ -135,10 +142,20 @@ class Study(object):
                 self.maskedSubjects[tempMaskName].append(tempSubName)
 
         # done with the processing, tell the world about it and give a summary
-        print('Done with fetching subjects, this is what it looks like')
+        print('Done with fetching subjects'
+              + '\nwe have ' + str(len(self.maskedSubjects.keys())) + ' masks')
+        maskString = 'These are the masks we have:'
         for mask in self.maskedSubjects.keys():
-            print('    ' + mask + ' : '
-                  + str(len(self.maskedSubjects[mask].keys())) + ' subjects')
+            maskString = (maskString
+                          + '\n    ' + mask + ' : '
+                          + str(len(self.maskedSubjects[mask])) + ' subjects')
+        print(maskString)
+        if len(problemList) > 0:
+            print('There were ' + str(len(problemString)) + ' subjects with'
+                  + ' problems')
+            print(problemString)
+        else:
+            print('No subjects had any problems')
 
     def getAnalyses(self, configFile):
         '''
