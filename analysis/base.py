@@ -422,7 +422,7 @@ class Analysis(object):
             # save the network object to the analysis
             self.networks[network] = tempNetwork
             # and print out that it is done
-            print('Done preparing network ' + network)
+            print('Done preparing ' + network + ' network')
 
 
 class Network(object):
