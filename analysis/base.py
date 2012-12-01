@@ -454,7 +454,7 @@ class Network(object):
         since this takes some time, I will put a print option out there
         '''
         runID = 1
-        nFolds = self.cvObject.n_folds
+        nFolds = self.cvObject.k
         for cvInstance in self.cvObject:
             # create a new instance of the fold class
             run = Run(str(runID))
