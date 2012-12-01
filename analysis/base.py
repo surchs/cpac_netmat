@@ -20,6 +20,7 @@ import sklearn.grid_search as gs
 import sklearn.cross_validation as cv
 import sklearn.feature_selection as fs
 from sklearn.metrics import mean_squared_error
+from cpac_netmat.tools import meisterlein as mm
 
 
 class Study(object):
@@ -106,6 +107,19 @@ class Study(object):
             tempSubFile = gzip.open(subjectPath, 'rb')
             tempSubject = cPickle.load(tempSubFile)
             tempSubName = tempSubject.name
+
+            # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
+            # this is a temporary solution to change the type of the pheno
+            # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
+            for pheno in tempSubject.pheno.keys():
+                tempPheno = tempSubject.pheno[pheno]
+                if mm.isNumber(tempPheno):
+                    tempPheno = float(tempPheno)
+
+                tempSubject.pheno[pheno] = tempPheno
+            # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
+            # this was a temporary solution to change the type of the pheno
+            # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
 
             # get the masks in the subject
             for tempSubMask in tempSubject.masks.values():
