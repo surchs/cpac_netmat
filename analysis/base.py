@@ -750,7 +750,7 @@ class Run(object):
 
         # if for some reason this doesn't work, just paste directly
         parameters = {'C': parameterOne}
-        gridModel = svm.SVR(kernel=self.kernel, epsilon=self.E)
+        gridModel = svm.SVR(kernel=self.kernel, epsilon=self.eValue)
         firstTrainModel = gs.GridSearchCV(gridModel,
                                           parameters,
                                           cv=self.gridCv,
@@ -778,14 +778,15 @@ class Run(object):
         secondTrainModel.fit(self.trainFeature, self.trainPheno)
         bestC = secondTrainModel.best_estimator_.C
 
-        self.C = bestC
+        self.gridC = bestC
         pass
 
     def trainModel(self):
         '''
         Method to train the model
         '''
-        trainModel = svm.SVR(kernel=self.kernel, C=self.C, epsilon=self.E)
+        trainModel = svm.SVR(kernel=self.kernel, C=self.gridC,
+                             epsilon=self.eValue)
         trainModel.fit(self.trainFeature, self.trainPheno)
         self.model = trainModel
         pass
