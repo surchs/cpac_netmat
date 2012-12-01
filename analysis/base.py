@@ -450,8 +450,11 @@ class Network(object):
     def makeRuns(self):
         '''
         Method to create and store run objects for later execution
+
+        since this takes some time, I will put a print option out there
         '''
         runID = 1
+        nFolds = self.cvObject.n_folds
         for cvInstance in self.cvObject:
             # create a new instance of the fold class
             run = Run(str(runID))
@@ -495,6 +498,10 @@ class Network(object):
             # store the run in the Network object
             self.runs[run.number] = run
 
+            # print that we are done with the run
+            sys.stdout.write('\rDone creating run ' + str(runID) + '/'
+                             + str(nFolds) + ' for network ' + self.name)
+            sys.stdout.flush()
             # +1 on the run ID
             runID += 1
 
@@ -601,7 +608,15 @@ class Run(object):
             tempSub = self.train[subject]
             tempFeature = tempSub.feature
             tempPheno = tempSub.pheno[self.pheno]
-            self.trainFeature = np.append(self.trainFeature, tempFeature)
+            # the feature is 2-Dimensional and has to be appended along axis 0
+            if self.trainFeature == None:
+                self.trainFeature = tempFeature[None, ...]
+            else:
+                self.trainFeature = np.concatenate((self.trainFeature,
+                                                    tempFeature[None, ...]),
+                                                   axis=0)
+
+            # the pheno is 1-Dimensional and can be appended like this
             self.trainPheno = np.append(self.trainPheno, tempPheno)
 
         # now the same for test set\
@@ -609,7 +624,15 @@ class Run(object):
             tempSub = self.test[subject]
             tempFeature = tempSub.feature
             tempPheno = tempSub.pheno[self.pheno]
-            self.testFeature = np.append(self.testFeature, tempFeature)
+            # the feature is 2-Dimensional and has to be appended along axis 0
+            if self.testFeature == None:
+                self.testFeature = tempFeature[None, ...]
+            else:
+                self.testFeature = np.concatenate((self.testFeature,
+                                                    tempFeature[None, ...]),
+                                                   axis=0)
+
+            # the pheno is 1-Dimensional and can be appended like this
             self.testPheno = np.append(self.testPheno, tempPheno)
 
     def selectFeatures(self):
@@ -623,7 +646,8 @@ class Run(object):
         - other types of feature reduction (like iCA or correlation)
         '''
         # see that both groups have the same number of features
-        if not len(self.train.shape[1]) == len(self.test.shape[1]):
+        if not (len(self.trainFeature.shape[1])
+                == len(self.testFeature.shape[1])):
             print('The training and test set of run ' + str(self.number)
                   + ' don\'t have the same number of features')
 
