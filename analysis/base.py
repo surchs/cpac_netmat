@@ -646,12 +646,11 @@ class Run(object):
         - other types of feature reduction (like iCA or correlation)
         '''
         # see that both groups have the same number of features
-        if not (len(self.trainFeature.shape[1])
-                == len(self.testFeature.shape[1])):
+        if not self.trainFeature.shape[1] == self.testFeature.shape[1]:
             print('The training and test set of run ' + str(self.number)
                   + ' don\'t have the same number of features')
 
-        numberFeatures = len(self.train.shape[1])
+        numberFeatures = self.trainFeature.shape[1]
 
         # prepare estimator object for feature selection
         svrEstimator = svm.SVR(kernel=self.kernel)
