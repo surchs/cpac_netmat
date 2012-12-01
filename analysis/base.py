@@ -601,40 +601,16 @@ class Run(object):
             tempSub = self.train[subject]
             tempFeature = tempSub.feature
             tempPheno = tempSub.pheno[self.pheno]
-            if not self.trainFeature:
-                # self.trainFeature doesn't exist, make it happen
-                self.trainFeature = tempFeature[None, ...]
-            else:
-                self.trainFeature = np.concatenate((self.trainFeature,
-                                                    tempFeature[None, ...]),
-                                                   axis=0)
-            if not self.trainPheno:
-                # create self.trainPheno
-                self.trainPheno = tempPheno[None, ...]
-            else:
-                self.trainPheno = np.concatenate((self.trainPheno,
-                                                  tempPheno[None, ...]),
-                                                 axis=0)
+            self.trainFeature = np.append(self.trainFeature, tempFeature)
+            self.trainPheno = np.append(self.trainPheno, tempPheno)
 
         # now the same for test set\
         for subject in self.testSubs:
             tempSub = self.test[subject]
             tempFeature = tempSub.feature
             tempPheno = tempSub.pheno[self.pheno]
-            if not self.testFeature:
-                # self.testFeature doesn't exist, make it happen
-                self.testFeature = tempFeature[None, ...]
-            else:
-                self.testFeature = np.concatenate((self.testFeature,
-                                                   tempFeature[None, ...]),
-                                                  axis=0)
-            if not self.testPheno:
-                # create self.testPheno
-                self.testPheno = tempPheno[None, ...]
-            else:
-                self.testPheno = np.concatenate((self.testPheno,
-                                                 tempPheno[None, ...]),
-                                                axis=0)
+            self.testFeature = np.append(self.testFeature, tempFeature)
+            self.testPheno = np.append(self.testPheno, tempPheno)
 
     def selectFeatures(self):
         '''
