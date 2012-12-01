@@ -229,7 +229,7 @@ class Study(object):
             cValue = float(configLine[9])
             eValue = float(configLine[10])
             gridCv = int(configLine[11])
-            runCores = int(configLine[12])
+            gridCores = int(configLine[12])
             maxFeat = int(configLine[13])
 
             # check if the desired mask is present in the Study Object
@@ -254,7 +254,7 @@ class Study(object):
             tempAnalysis.eValue = eValue
             tempAnalysis.gridCv = gridCv
             tempAnalysis.numberCores = self.numberCores
-            tempAnalysis.runCores = runCores
+            tempAnalysis.gridCores = gridCores
             tempAnalysis.maxFeat = maxFeat
             # get the subjects and see if any don't have the derivative
             tempSubs = {}
@@ -314,7 +314,7 @@ class Analysis(object):
         self.eValue = None
         self.gridCv = None
         self.numberCores = None
-        self.runCores = None
+        self.gridCores = None
         self.maxFeat = None
         self.networks = {}
         self.cvObject = None
@@ -413,7 +413,7 @@ class Analysis(object):
             tempNetwork.gridCv = self.gridCv
             tempNetwork.maxFeat = self.maxFeat
             tempNetwork.numberCores = self.numberCores
-            tempNetwork.runCores = self.runCores
+            tempNetwork.gridCores = self.gridCores
             tempNetwork.kernel = self.kernel
             tempNetwork.C = self.cValue
             tempNetwork.E = self.eValue
@@ -444,7 +444,7 @@ class Network(object):
         self.gridCv = None
         self.maxFeat = None
         self.numberCores = None
-        self.runCores = None
+        self.gridCores = None
         self.kernel = None
         self.cValue = None
         self.eValue = None
@@ -486,7 +486,7 @@ class Network(object):
 
             # set the necessary parameters
             run.maxFeat = self.maxFeat
-            run.runCores = self.runCores
+            run.gridCores = self.gridCores
             run.gridCv = self.gridCv
 
             # model parameters
@@ -513,7 +513,7 @@ class Network(object):
         Since this is mostly used for debugging, we give a little more
         information here
         '''
-        print('Running run ' + str(run.number) + ' of networ ' + self.name)
+        print('Running run ' + str(run.number) + ' of network ' + self.name)
         print('Running feature selection')
         run.selectFeatures()
         print('Running parameter selection')
@@ -533,7 +533,7 @@ class Network(object):
         '''
         # first see how many runs we have and how many cores we may use so
         # we don't exceed with the cores per run
-        parallelRuns = np.floor(self.numberCores / self.runCores)
+        parallelRuns = np.floor(self.numberCores / self.gridCores)
 
         start = time.time()
         pool = mp.Pool(processes=parallelRuns)
@@ -569,7 +569,7 @@ class Run(object):
             - grid search start parameters
             - self.maxFeat - max features for rcrfe
             - self.pheno - phenotypic information to run on
-            - self.runCores - number of Cores to run in gridSearch per run
+            - self.gridCores - number of Cores to run in gridSearch per run
         '''
         self.number = number
         # have to be set before running
@@ -579,7 +579,7 @@ class Run(object):
 
         # processing parameters
         self.maxFeat = 2000
-        self.runCores = 2
+        self.gridCores = 2
         self.gridCv = 5
         self.pheno = None
 
@@ -754,7 +754,7 @@ class Run(object):
         firstTrainModel = gs.GridSearchCV(gridModel,
                                           parameters,
                                           cv=self.gridCv,
-                                          n_jobs=self.numberCores,
+                                          n_jobs=self.gridCores,
                                           verbose=0)
 
         firstTrainModel.fit(self.trainFeature, self.trainPheno)
@@ -772,7 +772,7 @@ class Run(object):
         secondTrainModel = gs.GridSearchCV(gridModel,
                                            parameters,
                                            cv=self.gridCv,
-                                           n_jobs=self.runCores,
+                                           n_jobs=self.gridCores,
                                            verbose=0)
 
         secondTrainModel.fit(self.trainFeature, self.trainPheno)
