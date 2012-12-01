@@ -664,12 +664,10 @@ class Run(object):
             print('The training and test set of run ' + str(self.number)
                   + ' don\'t have the same number of features')
 
-        if not self.trainFeature.shape[1] == self.trainPheno.shape[0]:
+        if not self.trainFeature.shape[0] == self.trainPheno.shape[0]:
             print('The training feature and pheno set of run '
                   + str(self.number)
                   + ' don\'t have the same number of observations / subjects')
-            print('feature: ' + str(self.trainFeature.shape[1])
-                  + 'pheno: ' + str(self.trainPheno.shape[0]))
 
         numberFeatures = self.trainFeature.shape[1]
 
