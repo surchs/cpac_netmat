@@ -502,7 +502,8 @@ class Network(object):
 
             # print that we are done with the run
             sys.stdout.write('\rDone creating run ' + str(runID) + '/'
-                             + str(nFolds) + ' for network ' + self.name)
+                             + str(nFolds) + ' for network ' + self.name
+                             + '\nC = ' + str(run.C) + ' E = ' + str(run.E))
             sys.stdout.flush()
             # +1 on the run ID
             runID += 1
