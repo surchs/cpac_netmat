@@ -485,7 +485,7 @@ class Network(object):
             # set the necessary parameters
             run.maxFeat = self.maxFeat
             run.runCores = self.runCores
-            run.runCv = self.gridCv
+            run.gridCv = self.gridCv
 
             # model parameters
             run.kernel = self.kernel
@@ -578,7 +578,7 @@ class Run(object):
         # processing parameters
         self.maxFeat = 2000
         self.runCores = 2
-        self.runCv = 5
+        self.gridCv = 5
         self.pheno = None
 
         # model parameters
@@ -736,8 +736,8 @@ class Run(object):
         '''
         # check if the number of crossvalidations is higher than the number
         # of phenotypic information
-        if len(self.trainPheno) < self.cv:
-            self.cv = len(self.Pheno)
+        if self.trainPheno.shape[0] < self.gridCv:
+            self.gridCv = self.trainPheno.shape[0]
 
         # provide the parameters for the first, coarse pass
         # set of parameters
@@ -751,7 +751,7 @@ class Run(object):
         gridModel = svm.SVR(kernel=self.kernel, epsilon=self.E)
         firstTrainModel = gs.GridSearchCV(gridModel,
                                           parameters,
-                                          cv=self.cv,
+                                          cv=self.gridCv,
                                           n_jobs=self.numberCores,
                                           verbose=0)
 
@@ -769,7 +769,7 @@ class Run(object):
 
         secondTrainModel = gs.GridSearchCV(gridModel,
                                            parameters,
-                                           cv=self.cv,
+                                           cv=self.gridCv,
                                            n_jobs=self.runCores,
                                            verbose=0)
 
