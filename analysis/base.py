@@ -415,8 +415,8 @@ class Analysis(object):
             tempNetwork.numberCores = self.numberCores
             tempNetwork.gridCores = self.gridCores
             tempNetwork.kernel = self.kernel
-            tempNetwork.C = self.cValue
-            tempNetwork.E = self.eValue
+            tempNetwork.cValue = self.cValue
+            tempNetwork.eValue = self.eValue
             tempNetwork.pheno = self.pheno
 
             # save the network object to the analysis
@@ -438,8 +438,8 @@ class Network(object):
         self.subjects = {}
         self.runs = {}
         # parameters for the runs
-        self.E = None
-        self.C = None
+        self.eValue = None
+        self.cValue = None
         self.pheno = None
         self.gridCv = None
         self.maxFeat = None
@@ -491,8 +491,8 @@ class Network(object):
 
             # model parameters
             run.kernel = self.kernel
-            run.C = self.cValue
-            run.E = self.eValue
+            run.cValue = self.cValue
+            run.eValue = self.eValue
             run.pheno = self.pheno
 
             # run the prepare run method
@@ -502,8 +502,7 @@ class Network(object):
 
             # print that we are done with the run
             sys.stdout.write('\rDone creating run ' + str(runID) + '/'
-                             + str(nFolds) + ' for network ' + self.name
-                             + '\nC = ' + str(run.C) + ' E = ' + str(run.E))
+                             + str(nFolds) + ' for network ' + self.name)
             sys.stdout.flush()
             # +1 on the run ID
             runID += 1
@@ -586,8 +585,8 @@ class Run(object):
 
         # model parameters
         self.kernel = None
-        self.C = None
-        self.E = 0.000001
+        self.cValue = None
+        self.eValue = 0.000001
 
         # are set by running prepareRun()
         # data generated on the run
