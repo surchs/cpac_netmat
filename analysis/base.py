@@ -508,11 +508,19 @@ class Network(object):
     def runRun(self, run):
         '''
         Method to run an individual run
+        Since this is mostly used for debugging, we give a little more
+        information here
         '''
+        print('Running run ' + str(run.number) + ' of networ ' + self.name)
+        print('Running feature selection')
         run.selectFeatures()
+        print('Running parameter selection')
         run.selectParameters()
+        print('Running model training')
         run.trainModel()
+        print('Running model testing')
         run.testModel()
+        print('Running error calculation')
         run.getError()
 
         return run
@@ -617,6 +625,9 @@ class Run(object):
                                                    axis=0)
 
             # the pheno is 1-Dimensional and can be appended like this
+            if self.trainPheno == None:
+                self.trainPheno = np.array([])
+
             self.trainPheno = np.append(self.trainPheno, tempPheno)
 
         # now the same for test set\
@@ -633,6 +644,9 @@ class Run(object):
                                                    axis=0)
 
             # the pheno is 1-Dimensional and can be appended like this
+            if self.testPheno == None:
+                self.testPheno = np.array([])
+
             self.testPheno = np.append(self.testPheno, tempPheno)
 
     def selectFeatures(self):
@@ -649,6 +663,11 @@ class Run(object):
         if not self.trainFeature.shape[1] == self.testFeature.shape[1]:
             print('The training and test set of run ' + str(self.number)
                   + ' don\'t have the same number of features')
+
+        if not self.trainFeature.shape[1] == self.trainPheno.shape[0]:
+            print('The training feature and pheno set of run '
+                  + str(self.number)
+                  + ' don\'t have the same number of observations / subjects')
 
         numberFeatures = self.trainFeature.shape[1]
 
