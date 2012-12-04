@@ -7,6 +7,7 @@ A class directory for the beautiful classes I will need in preprocessing
 '''
 import os
 import gzip
+import copy
 import cPickle
 import numpy as np
 import nibabel as nib
@@ -239,18 +240,22 @@ class Mask(object):
                   not node in goodNodes):
                 # no networks assigned so far, just check against goodNodes
                 goodNodes = np.append(goodNodes, node)
+                continue
 
-            for network in self.networkNodes.keys():
-                if node in self.networkNodes[network]:
-                    print('Node ' + str(node) + ' already in '
-                          + network + ' network')
-                    break
-                else:
-                    goodNodes = np.append(goodNodes, node)
+            else:
+                for network in self.networkNodes.keys():
+                    if node in self.networkNodes[network]:
+                        print('Node ' + str(node) + ' already in '
+                              + network + ' network')
+                        break
+                    else:
+                        goodNodes = np.append(goodNodes, node)
+                        break
 
         # check if anything is left in the nodelist
         if len(goodNodes) == 0:
-            print('\nThere are no nodes stored for ' + networkName + ' network')
+            print('\nThere are no nodes stored for ' + networkName
+                  + ' network')
         else:
             print('\n' + str(len(goodNodes)) + ' nodes will be stored for '
                   + networkName + ' network')
@@ -340,7 +345,7 @@ class Mask(object):
 
         # make a copy of the mask matrix and set all node values that are not
         # in the showNodes array to zero
-        maskCopy = np.copy(self.mask)
+        maskCopy = copy.copy(self.mask)
         for node in self.nodes:
             if not node in showNodes:
                 maskCopy[maskCopy == node] = 0
