@@ -14,6 +14,7 @@ import gzip
 import cPickle
 import multiprocessing as mp
 import cpac_netmat.preprocessing as pp
+from cpac_netmat.tools import meisterlein as mm
 
 
 def runDerivative(args):
@@ -102,6 +103,9 @@ def Main(searchDir, templateFile, phenoPath, maskDir, outDir, nProcs):
                         # phenotypic information
                         for pheno in phenoIndex.keys():
                             tempPheno = subLine[phenoIndex[pheno]]
+                            if mm.isNumber(tempPheno):
+                                tempPheno = float(tempPheno)
+
                             tempSub.phen[pheno] = tempPheno
                     else:
                         # not the right line, just continue
@@ -120,8 +124,10 @@ def Main(searchDir, templateFile, phenoPath, maskDir, outDir, nProcs):
                 deriPath = tempLine[1]
                 deriFile = tempLine[2]
                 # check if a mask has been given - not yet implemented
+                '''
                 if len(tempLine) > 3:
                     maskName = tempLine[3]
+                '''
 
                 searchString = (subjectDir + '/' + subject
                                 + deriPath + deriFile)
