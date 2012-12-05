@@ -507,7 +507,10 @@ class Network(object):
 
             # set the necessary parameters
             run.maxFeat = self.maxFeat
-            run.gridCores = self.gridCores
+            # temporary change because of processing
+            # run.gridCores = self.gridCores
+            run.gridCores = 1
+
             run.gridCv = self.gridCv
 
             # model parameters
@@ -556,7 +559,11 @@ class Network(object):
         '''
         # first see how many runs we have and how many cores we may use so
         # we don't exceed with the cores per run
-        parallelRuns = int(np.floor(self.numberCores / self.gridCores))
+
+        # currently this doesn't seem to work, so we run all runs at the same
+        # time
+        # parallelRuns = int(np.floor(self.numberCores / self.gridCores))
+        parallelRuns = self.numberCores
 
         print('Running Network ' + self.name + ' with '
               + str(parallelRuns) + ' runs in parallel')
