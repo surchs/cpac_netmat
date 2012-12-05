@@ -40,6 +40,7 @@ def executeRuns(run):
         run.testModel()
         # print('Running error calculation')
         run.getError()
+        print('Done running run ' + str(run.number))
 
         return run
 
