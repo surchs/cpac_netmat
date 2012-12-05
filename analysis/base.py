@@ -23,6 +23,27 @@ from sklearn.metrics import mean_squared_error
 from cpac_netmat.tools import meisterlein as mm
 
 
+def executeRuns(run):
+        '''
+        external method to run runs in parallel. Right now, I cannot do this
+        from inside the class. There is a way to implement this with copy_reg
+        but right now I will use it like this
+        '''
+        print('Running run ' + str(run.number))
+        print('Running feature selection')
+        run.selectFeatures()
+        print('Running parameter selection')
+        run.selectParameters()
+        print('Running model training')
+        run.trainModel()
+        print('Running model testing')
+        run.testModel()
+        print('Running error calculation')
+        run.getError()
+
+        return run
+
+
 class Study(object):
     '''
     class to contain a full set of analyses to investigate. parameters, logs
@@ -512,6 +533,8 @@ class Network(object):
         Method to run an individual run
         Since this is mostly used for debugging, we give a little more
         information here
+
+        no longer used for parallelization
         '''
         print('Running run ' + str(run.number) + ' of network ' + self.name)
         print('Running feature selection')
@@ -535,9 +558,11 @@ class Network(object):
         # we don't exceed with the cores per run
         parallelRuns = int(np.floor(self.numberCores / self.gridCores))
 
+        print('Running Network ' + self.name + ' with '
+              + str(parallelRuns) + ' runs in parallel')
         start = time.time()
         pool = mp.Pool(processes=parallelRuns)
-        resultList = pool.map(self.runRun, self.runs.values())
+        resultList = pool.map(executeRuns, self.runs.values())
         stop = time.time()
         elapsed = stop - start
 
