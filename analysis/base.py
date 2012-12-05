@@ -30,15 +30,15 @@ def executeRuns(run):
         but right now I will use it like this
         '''
         print('Running run ' + str(run.number))
-        print('Running feature selection')
+        # print('Running feature selection')
         run.selectFeatures()
-        print('Running parameter selection')
+        # print('Running parameter selection')
         run.selectParameters()
-        print('Running model training')
+        # print('Running model training')
         run.trainModel()
-        print('Running model testing')
+        # print('Running model testing')
         run.testModel()
-        print('Running error calculation')
+        # print('Running error calculation')
         run.getError()
 
         return run
@@ -572,7 +572,7 @@ class Network(object):
         # map back the results
         for run in resultList:
             # loop through the shit
-            self.runs[run.name] = run
+            self.runs[run.number] = run
 
 
 class Run(object):
