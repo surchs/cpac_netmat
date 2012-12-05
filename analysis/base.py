@@ -533,7 +533,7 @@ class Network(object):
         '''
         # first see how many runs we have and how many cores we may use so
         # we don't exceed with the cores per run
-        parallelRuns = np.floor(self.numberCores / self.gridCores)
+        parallelRuns = int(np.floor(self.numberCores / self.gridCores))
 
         start = time.time()
         pool = mp.Pool(processes=parallelRuns)
