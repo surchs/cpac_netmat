@@ -41,14 +41,7 @@ def executeRuns(run):
     # print('Running error calculation')
     run.getError()
     print('Done running run ' + str(run.number))
-
-    # now that we are through with the run we can also delete the more memory
-    # taxing elements
-    run.train = None
-    run.test = None
-    run.trainFeature = None
-    run.testFeature = None
-    run.trainPheno = None
+    run.cleanUp()
 
     return run
 
@@ -893,6 +886,16 @@ class Run(object):
         '''
         self.error = self.predictedPheno - self.testPheno
         pass
+
+    def cleanUp(self):
+        '''
+        Workaround garbage collector
+        '''
+        self.train = None
+        self.test = None
+        self.trainFeature = None
+        self.testFeature = None
+        self.trainPheno = None
 
     pass
 
