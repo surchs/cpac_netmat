@@ -41,7 +41,6 @@ def Main():
     print('Sleeping done')
 
 
-
-
 if __name__ == '__main__':
+    Main()
     pass
