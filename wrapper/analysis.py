@@ -16,8 +16,8 @@ def Main(studyName, dataPath, subjectList, numberCores, configFile, outFile):
     '''
     Wrapper Method for the analysis.
     '''
-    study = an.base.Study(studyName, dataPath, subjectList=subjectList,
-                          numberCores=numberCores)
+    study = an.singlecore.Study(studyName, dataPath, subjectList=subjectList,
+                                numberCores=numberCores)
     study.makeSubjectPaths()
     study.getSubjects()
     # in the current setting, this will also run the analysis
