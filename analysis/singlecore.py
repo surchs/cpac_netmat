@@ -522,7 +522,7 @@ class Network(object):
             run.maxFeat = self.maxFeat
             # temporary change because of processing
             # run.gridCores = self.gridCores
-            run.gridCores = 1
+            run.gridCores = self.numberCores
 
             run.gridCv = self.gridCv
 
