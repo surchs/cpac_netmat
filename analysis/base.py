@@ -609,9 +609,9 @@ class Network(object):
               + str(parallelRuns) + ' runs in parallel')
         start = time.time()
         pool = mp.Pool(processes=parallelRuns)
+        resultList = pool.map(executeRuns, self.runs.values())
         # we can loose the memory on the network level right away
         self.runs = None
-        resultList = pool.map(executeRuns, self.runs.values())
         stop = time.time()
         elapsed = stop - start
 
