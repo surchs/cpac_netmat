@@ -624,9 +624,10 @@ class Network(object):
         # map back the results and also extract the predictions
         for run in resultList:
             # loop through the shit
-            self.truePheno = np.append(run.testPheno, self.truePheno)
-            self.predictedPheno = np.append(run.predictPheno,
-                                            self.predictedPheno)
+            self.truePheno = np.append(self.truePheno,
+                                       run.testPheno)
+            self.predictedPheno = np.append(self.predictedPheno,
+                                            run.predictedPheno)
             if self.usedFeatures.size == 0:
                 self.usedFeatures = run.featureIndex
             else:
