@@ -504,6 +504,10 @@ class Network(object):
         self.kernel = None
         self.cValue = None
         self.eValue = None
+        # results from analysis
+        self.truePheno = np.array([])
+        self.predictedPheno = np.array([])
+        self.usedFeatures = np.array([])
 
     def makeRuns(self):
         '''
@@ -615,10 +619,20 @@ class Network(object):
         print('Running Network ' + self.name + ' is done. This took '
               + str(elapsed) + ' seconds')
 
-        # map back the results
+        # map back the results and also extract the predictions
         for run in resultList:
             # loop through the shit
+            self.truePheno = np.append(run.testPheno, self.truePheno)
+            self.predictedPheno = np.append(run.predictPheno,
+                                            self.predictedPheno)
+            if self.usedFeatures.size == 0:
+                self.usedFeatures = run.featureIndex
+            else:
+                self.usedFeatures = self.usedFeatures * run.featureIndex
             self.runs[run.number] = run
+
+        # for now, I will just get rid of the runs
+        self.runs = None
 
 
 class Run(object):
