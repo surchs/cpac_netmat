@@ -24,25 +24,33 @@ from cpac_netmat.tools import meisterlein as mm
 
 
 def executeRuns(run):
-        '''
-        external method to run runs in parallel. Right now, I cannot do this
-        from inside the class. There is a way to implement this with copy_reg
-        but right now I will use it like this
-        '''
-        print('Running run ' + str(run.number))
-        # print('Running feature selection')
-        run.selectFeatures()
-        # print('Running parameter selection')
-        run.selectParameters()
-        # print('Running model training')
-        run.trainModel()
-        # print('Running model testing')
-        run.testModel()
-        # print('Running error calculation')
-        run.getError()
-        print('Done running run ' + str(run.number))
+    '''
+    external method to run runs in parallel. Right now, I cannot do this
+    from inside the class. There is a way to implement this with copy_reg
+    but right now I will use it like this
+    '''
+    print('Running run ' + str(run.number))
+    # print('Running feature selection')
+    run.selectFeatures()
+    # print('Running parameter selection')
+    run.selectParameters()
+    # print('Running model training')
+    run.trainModel()
+    # print('Running model testing')
+    run.testModel()
+    # print('Running error calculation')
+    run.getError()
+    print('Done running run ' + str(run.number))
 
-        return run
+    # now that we are through with the run we can also delete the more memory
+    # taxing elements
+    run.train = None
+    run.test = None
+    run.trainFeature = None
+    run.testFeature = None
+    run.trainPheno = None
+
+    return run
 
 
 class Study(object):
@@ -441,6 +449,13 @@ class Analysis(object):
             tempNetwork.eValue = self.eValue
             tempNetwork.pheno = self.pheno
 
+            # now instead of doing this somewhere else, we will just run them
+            # here
+            tempNetwork.makeRuns()
+            tempNetwork.executeRuns()
+            # now the analysis is done - we need to get the analysis results
+            # back to the network level
+
             # save the network object to the analysis
             self.networks[network] = tempNetwork
             # and print out that it is done
@@ -449,6 +464,9 @@ class Analysis(object):
     def runNetworks(self):
         '''
         Method to run all the networks in the analysis
+
+        At the moment I am not going to use this as it is implemented on the
+        prepareNetworks() level.
         '''
         for network in self.networks.keys():
             start = time.time()
@@ -547,6 +565,10 @@ class Network(object):
             sys.stdout.flush()
             # +1 on the run ID
             runID += 1
+
+        # now that it is done, the Network doesn't need its memory heavy
+        # attributes anymore so we can clean them out with brute force
+        self.subjects = None
 
     def runRun(self, run):
         '''
