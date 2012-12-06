@@ -446,6 +446,22 @@ class Analysis(object):
             # and print out that it is done
             print('Done preparing ' + network + ' network')
 
+    def runNetworks(self):
+        '''
+        Method to run all the networks in the analysis
+        '''
+        for network in self.networks.keys():
+            start = time.time()
+            print('Running ' + network + ' network now.')
+            tempNetwork = self.networks[network]
+            tempNetwork.makeRuns()
+            tempNetwork.executeRuns()
+            self.networks[network] = tempNetwork
+            print('Done running ' + network + ' network now')
+            stop = time.time()
+            elapsed = stop - start
+            print('This took ' + str(elapsed) + ' seconds.\n')
+
 
 class Network(object):
     '''
