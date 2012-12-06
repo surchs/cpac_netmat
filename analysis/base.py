@@ -614,6 +614,9 @@ class Network(object):
         self.runs = None
         stop = time.time()
         elapsed = stop - start
+        print('\nClosing pools')
+        pool.close()
+        print('Pools closed!\n\n')
 
         print('Running Network ' + self.name + ' is done. This took '
               + str(elapsed) + ' seconds')
