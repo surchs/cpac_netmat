@@ -609,6 +609,8 @@ class Network(object):
               + str(parallelRuns) + ' runs in parallel')
         start = time.time()
         pool = mp.Pool(processes=parallelRuns)
+        # we can loose the memory on the network level right away
+        self.runs = None
         resultList = pool.map(executeRuns, self.runs.values())
         stop = time.time()
         elapsed = stop - start
@@ -626,10 +628,9 @@ class Network(object):
                 self.usedFeatures = run.featureIndex
             else:
                 self.usedFeatures = self.usedFeatures * run.featureIndex
-            self.runs[run.number] = run
+            # self.runs[run.number] = run
 
         # for now, I will just get rid of the runs
-        self.runs = None
 
 
 class Run(object):
