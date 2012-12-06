@@ -307,6 +307,10 @@ class Study(object):
                     tempSubs[subject] = tempSub
 
                     tempAnalysis.subjects[subject] = tempSub
+
+            # now that the Analysis is prepared, we can also just run it here
+            tempAnalysis.makeCrossvalidate()
+            tempAnalysis.prepareNetworks()
             # and store the object in the dictionary
             self.analyses[tempAnalysis.name] = tempAnalysis
         # Done creating analyses
