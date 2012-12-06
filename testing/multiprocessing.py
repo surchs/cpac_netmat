@@ -15,6 +15,7 @@ class container(object):
         self.mean = None
 
     def doSomething(self):
+        print('doing something with run ' + self.name)
         time.sleep(10)
         self.mean = np.mean(self.data)
 
@@ -24,17 +25,25 @@ def mach(container):
     return container
 
 
-def Main():
+def subMain(lala):
     lulu = []
     for i in np.arange(100, 1000, 50):
         tempData = np.random.random((i, i))
         tempCon = container(str(i), tempData)
         lulu.append(tempCon)
 
+    print('starting submain processes')
     pool = mp.Pool(processes=10)
     resultList = pool.map(mach, lulu)
     for result in resultList:
         print(str(result.mean))
+
+
+def Main():
+    lala = ''
+    print('starting submain')
+    pool = mp.Pool(processes=1)
+    resultList = pool.map(subMain, lala)
 
     print('\nSleeping now')
     time.sleep(240)
