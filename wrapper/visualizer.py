@@ -184,7 +184,7 @@ def Main(studyFile, analysis):
 
     # now create the text for the whole study
     txtName = ('The name of the current analysis is ' + aName)
-    txtKernel = ('Here, a ' + analysis.kernel + ' kernel was used')
+    txtKernel = ('Here, a ' + tempAnalysis.kernel + ' kernel was used')
     txtFeat = ('The feature selection was ' + str(analysis.fs))
     # txtConn = ('The connectivity trained on was ' + analysis.connType)
     txtFolds = (str(numberFolds) + ' folds were run while estimating age')
