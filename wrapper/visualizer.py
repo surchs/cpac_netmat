@@ -142,7 +142,6 @@ def Main(studyFile, analysis):
     errorVarList = []
     errorNameList = []
     numberFolds = None
-    numberSubs = None
     trueAge = None
     # now loop over the networks and get the data
     for network in networkNames:
@@ -156,17 +155,17 @@ def Main(studyFile, analysis):
         #           + ' = ' + str(tD['rmse']) + '\n')
         # read out temporary network file
         tempNet = tempAnalysis.networks[network]
-        tpCorr = st.pearsonr(tempNet.trueData,
-                             tempNet.predictedData)[0]
+
+        tpCorr = st.pearsonr(tempNet.truePheno,
+                             tempNet.predictedPheno)[0]
         txtCorr = (txtCorr + 'Pearson\'s r for ' + network
                    + ' = ' + str(np.round(tpCorr, 3)) + '\n')
         txtParm = (txtParm + 'Parameters for ' + network
-                   + ': C = ' + str(np.round(tempNet.C, 3)) + ' E = '
+                   + ': C = ' + str(np.round(tempNet.cValue, 3)) + ' E = '
                    + str(np.round(tempNet.E, 6)) + '\n')
 
-        numberFolds = tempNet.numberFolds
-        numberSubs = len(tempNet.subNames)
-        trueAge = tempNet.trueData
+        numberFolds = len(tempNet.gridCv)
+        trueAge = tempNet.truePheno
         # for the boxplots, we have to append the data to a list
         errorVarList.append(tD['error'])
         errorNameList.append(network)
@@ -192,15 +191,13 @@ def Main(studyFile, analysis):
     txtAnova = ('ANOVA of Network effect on prediction error returned:\nF = '
                 + str(np.round(anova[0], 3)) + ' p = '
                 + str(np.round(anova[1], 3)))
-    txtSubs = ('There were ' + str(numberSubs) + ' subjects in this analysis')
     txtAge = ('Their ages ranged from ' + str(np.round(trueAge.min(), 2))
               + ' to ' + str(np.round(trueAge.max(), 2))
               + ' years of age (SD = '
               + str(np.round(np.std(trueAge), 2)) + ')')
 
     statString = (txtName + '\n' + txtKernel + '\n' + txtFeat
-                  + '\n' + txtFolds + '\n' + txtAnova + '\n' + txtSubs + '\n'
-                  + txtAge)
+                  + '\n' + txtFolds + '\n' + txtAnova + '\n' + txtAge)
     # + txtRmse + '\n\n'
     dynString = (txtMae + '\n\n' + txtCorr + '\n\n'
                  + txtParm)
