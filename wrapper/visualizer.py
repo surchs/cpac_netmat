@@ -162,7 +162,7 @@ def Main(studyFile, analysis):
                    + ' = ' + str(np.round(tpCorr, 3)) + '\n')
         txtParm = (txtParm + 'Parameters for ' + network
                    + ': C = ' + str(np.round(tempNet.cValue, 3)) + ' E = '
-                   + str(np.round(tempNet.E, 6)) + '\n')
+                   + str(np.round(tempNet.eValue, 6)) + '\n')
 
         numberFolds = len(tempNet.gridCv)
         trueAge = tempNet.truePheno
