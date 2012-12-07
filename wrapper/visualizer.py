@@ -185,7 +185,7 @@ def Main(studyFile, analysis):
     # now create the text for the whole study
     txtName = ('The name of the current analysis is ' + aName)
     txtKernel = ('Here, a ' + tempAnalysis.kernel + ' kernel was used')
-    txtFeat = ('The feature selection was ' + str(analysis.fs))
+    txtFeat = ('The feature selection was ' + str(tempAnalysis.featureSelect))
     # txtConn = ('The connectivity trained on was ' + analysis.connType)
     txtFolds = (str(numberFolds) + ' folds were run while estimating age')
     txtAnova = ('ANOVA of Network effect on prediction error returned:\nF = '
