@@ -164,7 +164,7 @@ def Main(studyFile, analysis):
                    + ': C = ' + str(np.round(tempNet.cValue, 3)) + ' E = '
                    + str(np.round(tempNet.eValue, 6)) + '\n')
 
-        numberFolds = len(tempNet.gridCv)
+        numberFolds = len(tempNet.cvObject)
         trueAge = tempNet.truePheno
         # for the boxplots, we have to append the data to a list
         errorVarList.append(tD['error'])
