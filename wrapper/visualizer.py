@@ -37,7 +37,7 @@ def Main(studyFile, analysis):
     for network in networkNames:
         tempNetwork = tempAnalysis.networks[network]
         tempDict = {}
-        tempTrue = tempNetwork.testPheno
+        tempTrue = tempNetwork.truePheno
         tempPred = tempNetwork.predictedPheno
         tempErr = tempPred - tempTrue
         # append error to errorlist for ANOVA
@@ -271,9 +271,6 @@ def Main(studyFile, analysis):
     pp.close()
 
     print '\nDone saving. Have a nice day.'
-
-    pass
-
 
 
 if __name__ == '__main__':
