@@ -96,6 +96,7 @@ def Main(studyFile, analysis):
                + ' out of '
                + str(numberNetworks)
                + ' networks are normally distributed')
+        anova = (999, 999)
 
     # now cols are hardcoded and rows depend on them
     cols = 2.0
