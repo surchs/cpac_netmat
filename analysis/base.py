@@ -495,6 +495,7 @@ class Network(object):
         self.cValue = None
         self.pheno = None
         self.gridCv = None
+        self.featureSelect = None
         self.maxFeat = None
         self.numberCores = None
         self.gridCores = None
@@ -542,6 +543,7 @@ class Network(object):
             run.test = tempTestSubs
 
             # set the necessary parameters
+            run.featureSelect = self.featureSelect
             run.maxFeat = self.maxFeat
             # temporary change because of processing
             # run.gridCores = self.gridCores
@@ -665,6 +667,7 @@ class Run(object):
         self.test = None
 
         # processing parameters
+        self.featureSelect = None
         self.maxFeat = 2000
         self.gridCores = 2
         self.gridCv = 5
@@ -760,53 +763,65 @@ class Run(object):
 
         numberFeatures = self.trainFeature.shape[1]
 
-        # prepare estimator object for feature selection
-        svrEstimator = svm.SVR(kernel=self.kernel)
-        # now run the feature selection
-        if numberFeatures >= self.maxFeat:
-            # more than the number of features we want
-            rfeObject = fs.RFE(estimator=svrEstimator,
-                               n_features_to_select=self.maxFeat,
-                               step=0.1)
-            # fit object
-            rfeObject.fit(self.trainFeature, self.trainPheno)
-            # temporary index of selected features
-            tempRfeIndex = rfeObject.support_
-            # better rfe index
-            rfeIndex = np.where(tempRfeIndex)[0]
-            # reduce a temporary copy of the features to the selection
-            tempTrainFeatures = self.trainFeature[..., rfeIndex]
+        if self.featureSelect == 'None':
+            # we will not run feature selection, just set features to all
+            featureIndex = np.ones(numberFeatures)
 
-            # now run the crossvalidated feature selection on the data
-            rfecvObject = fs.RFECV(estimator=svrEstimator,
-                                   step=0.01,
-                                   cv=2,
-                                   loss_func=mean_squared_error)
-            rfecvObject.fit(tempTrainFeatures, self.trainPheno)
-            tempRfeCvIndex = rfecvObject.support_
-            rfeCvIndex = np.where(tempRfeCvIndex)[0]
-            # apply the index only to the original features so it can be
-            # mapped back better and also used for the testing set
-            #
-            # create an integer index
+        elif self.featureSelect == 'rfe':
+            # alright, we are using rfe for feature selection
+            # prepare estimator object for feature selection
+            svrEstimator = svm.SVR(kernel=self.kernel)
+            # now run the feature selection
+            if numberFeatures >= self.maxFeat:
+                # more than the number of features we want
+                rfeObject = fs.RFE(estimator=svrEstimator,
+                                   n_features_to_select=self.maxFeat,
+                                   step=0.1)
+                # fit object
+                rfeObject.fit(self.trainFeature, self.trainPheno)
+                # temporary index of selected features
+                tempRfeIndex = rfeObject.support_
+                # better rfe index
+                rfeIndex = np.where(tempRfeIndex)[0]
+                # reduce a temporary copy of the features to the selection
+                tempTrainFeatures = self.trainFeature[..., rfeIndex]
 
-            tempIndex = np.zeros(numberFeatures, dtype=int)
-            tempIndex[rfeIndex[rfeCvIndex]] = 1
-            featureIndex = tempIndex
+                # now run the crossvalidated feature selection on the data
+                rfecvObject = fs.RFECV(estimator=svrEstimator,
+                                       step=0.01,
+                                       cv=2,
+                                       loss_func=mean_squared_error)
+                rfecvObject.fit(tempTrainFeatures, self.trainPheno)
+                tempRfeCvIndex = rfecvObject.support_
+                rfeCvIndex = np.where(tempRfeCvIndex)[0]
+                # apply the index only to the original features so it can be
+                # mapped back better and also used for the testing set
+                #
+                # create an integer index
+
+                tempIndex = np.zeros(numberFeatures, dtype=int)
+                tempIndex[rfeIndex[rfeCvIndex]] = 1
+                featureIndex = tempIndex
+
+            else:
+                # no need for the initial shrinking, otherwise the same
+                rfecvObject = fs.RFECV(estimator=svrEstimator,
+                                       step=0.01,
+                                       cv=2,
+                                       loss_func=mean_squared_error)
+                rfecvObject.fit(self.trainFeature, self.trainPheno)
+                tempRfeCvIndex = rfecvObject.support_
+                rfeCvIndex = np.where(tempRfeCvIndex)[0]
+
+                tempIndex = np.zeros(numberFeatures, dtype=int)
+                tempIndex[rfeCvIndex] = 1
+                featureIndex = tempIndex
 
         else:
-            # no need for the initial shrinking, otherwise the same
-            rfecvObject = fs.RFECV(estimator=svrEstimator,
-                                   step=0.01,
-                                   cv=2,
-                                   loss_func=mean_squared_error)
-            rfecvObject.fit(self.trainFeature, self.trainPheno)
-            tempRfeCvIndex = rfecvObject.support_
-            rfeCvIndex = np.where(tempRfeCvIndex)[0]
-
-            tempIndex = np.zeros(numberFeatures, dtype=int)
-            tempIndex[rfeCvIndex] = 1
-            featureIndex = tempIndex
+            # some dumbass selected a non-implemented option. Alert and ignore
+            print(self.featureSelect + ' is not  a valid choice for feature'
+                  + ' selection. No features will be removed.')
+            featureIndex = np.ones(numberFeatures)
 
         # done, now regardless of operation, we have the feature index
         # assign the values back to the object
