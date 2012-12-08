@@ -189,8 +189,7 @@ class Study(object):
 
         # done with the processing, tell the world about it and give a summary
         print('\n\nDone with fetching subjects'
-              + '\nwe have ' + str(len(self.maskedSubjects.keys())) + ' masks'
-              + '\nThese here: ' + self.maskedSubjects.keys())
+              + '\nwe have ' + str(len(self.maskedSubjects.keys())) + ' masks')
         maskString = 'These are the masks we have:'
         for mask in self.maskedSubjects.keys():
             maskString = (maskString
