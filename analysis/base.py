@@ -438,6 +438,7 @@ class Analysis(object):
 
             # edit the network parameters
             tempNetwork.gridCv = self.gridCv
+            tempNetwork.featureSelect = self.featureSelect
             tempNetwork.maxFeat = self.maxFeat
             tempNetwork.numberCores = self.numberCores
             tempNetwork.gridCores = self.gridCores
@@ -819,7 +820,7 @@ class Run(object):
 
         else:
             # some dumbass selected a non-implemented option. Alert and ignore
-            print(self.featureSelect + ' is not  a valid choice for feature'
+            print(str(self.featureSelect) + ' is not  a valid choice for feature'
                   + ' selection. No features will be removed.')
             featureIndex = np.ones(numberFeatures)
 
