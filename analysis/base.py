@@ -282,6 +282,8 @@ class Study(object):
             # get the subjects and see if any don't have the derivative
             tempSubs = {}
             for subject in self.maskedSubjects[mask].keys():
+                # get the number of derivatives prior to processing
+                preDer = len(self.maskedSubjects[mask][subject].derivativeMasks[mask].keys())
                 # copy the original to make it independent from changes
                 tempSub = copy.copy(self.maskedSubjects[mask][subject])
                 tempDerivatives = tempSub.derivativeMasks[mask]
@@ -300,6 +302,10 @@ class Study(object):
                     tempSubs[subject] = tempSub
 
                     tempAnalysis.subjects[subject] = tempSub
+                # now check the number of derivatives again
+                postDer = len(self.maskedSubjects[mask][subject].derivativeMasks[mask].keys())
+                print('Done with ' + subject + ' in ' + analysisName + ' with '
+                      + str(preDer) + '/' + str(postDer) + ' derivatives left')
 
             # now that the Analysis is prepared, we can also just run it here
             tempAnalysis.makeCrossvalidate()
@@ -820,7 +826,8 @@ class Run(object):
 
         else:
             # some dumbass selected a non-implemented option. Alert and ignore
-            print(str(self.featureSelect) + ' is not  a valid choice for feature'
+            print(str(self.featureSelect)
+                  + ' is not  a valid choice for feature'
                   + ' selection. No features will be removed.')
             featureIndex = np.ones(numberFeatures)
 
