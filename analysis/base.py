@@ -635,7 +635,9 @@ class Network(object):
                 self.usedFeatures = run.featureIndex
             else:
                 self.usedFeatures = self.usedFeatures * run.featureIndex
-            # self.runs[run.number] = run
+
+            run.cleanUp()
+            self.runs[run.number] = run
 
         # for now, I will just get rid of the runs
 
