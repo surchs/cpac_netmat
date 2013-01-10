@@ -468,9 +468,6 @@ class Analysis(object):
         print('Done preparing Fullbrain network')
 
 
-
-
-
     def prepareNetworks(self):
         '''
         Method to loop through the network/s and get the appropriate
@@ -486,8 +483,6 @@ class Analysis(object):
         maybe we just run both by default, don't know
         '''
         # loop through the networkNodes inside the mask
-        # and z-standardize everything
-        featSummary = np.array([])
         for network in self.mask.networkNodes.keys():
             # create a network object
             tempNetwork = Network(network, self.cvObject)
@@ -495,15 +490,6 @@ class Analysis(object):
             for subject in self.subjects.keys():
                 tempSub = self.subjects[subject]
                 tempDer = tempSub.derivative.feature
-                if featSummary.size == 0:
-                    # fS is empty, assign
-                    featSummary = tempDer[..., None]
-                else:
-                    featSummary = np.concatenate(featSummary, tempDer[..., 
-                                                                      None], 
-                                                 axis=3)
-                
-                
                 tempInd = self.mask.networkIndices[network]
                 tempFeat = {}
                 # see if it is a matrix or vector
