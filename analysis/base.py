@@ -387,6 +387,8 @@ class Analysis(object):
             for subject in self.subjects.keys():
                 tempSub = self.subjects[subject]
                 tempDer = tempSub.derivative.feature
+                # normalize the damn features goddamn it
+                tempDer = np.arctanh(tempDer)
                 tempInd = self.mask.networkIndices[network]
                 tempFeat = {}
                 # see if it is a matrix or vector
@@ -614,7 +616,7 @@ class Network(object):
         pool = mp.Pool(processes=parallelRuns)
         resultList = pool.map(executeRuns, self.runs.values())
         # we can loose the memory on the network level right away
-        self.runs = None
+        self.runs = {}
         stop = time.time()
         elapsed = stop - start
         print('\nClosing pools')
