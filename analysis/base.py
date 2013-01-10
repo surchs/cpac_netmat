@@ -127,6 +127,7 @@ class Study(object):
         problemString = 'These were the subjects that caused problems:'
         problemList = []
         run = 0
+        
         for subjectPath in self.subjectPaths:
             # open the file
             tempSubFile = gzip.open(subjectPath, 'rb')
@@ -134,7 +135,7 @@ class Study(object):
             tempSubName = tempSubject.name
 
             # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
-            # this is a temporary solution to change the type of the pheno
+            # this is a temporary solution to change the type of the pheno #
             # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
             for pheno in tempSubject.pheno.keys():
                 tempPheno = tempSubject.pheno[pheno]
@@ -143,7 +144,7 @@ class Study(object):
 
                 tempSubject.pheno[pheno] = tempPheno
             # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
-            # this was a temporary solution to change the type of the pheno
+            # this was a temporary solution to change the type of the pheno #
             # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
 
             # get the masks in the subject
@@ -284,6 +285,11 @@ class Study(object):
             tempAnalysis.maxFeat = maxFeat
             # get the subjects and see if any don't have the derivative
             tempSubs = {}
+            
+            # add functionality to z-standardize
+            zStandStore = np.array([])
+            subjectList = []
+            
             for subject in self.maskedSubjects[mask].keys():
                 # copy the original to make it independent from changes
                 tempSub = copy.deepcopy(self.maskedSubjects[mask][subject])
@@ -299,10 +305,36 @@ class Study(object):
                     # nothing wrong with this one - assign the correct
                     # derivative and delete the rest
                     tempSub.derivative = tempDerivatives[derivative]
+                    # fisher z-transform it
+                    tempSub.derivative = np.arctanh(tempSub.derivative)
                     tempSub.derivativeMasks[mask] = None
                     tempSubs[subject] = tempSub
-
+                    subjectList.append(tempSub.name)
+                    
+                    # and now add it to the store
+                    if zStandStore.size == 0:
+                        # doesn't exist yet
+                        zStandStore = tempSub.derivative[..., None]
+                    else:
+                        # concatenate
+                        zStandStore = np.concatenate(zStandStore,
+                                                     tempSub.derivative[..., 
+                                                                        None],
+                                                     axis=2)
+                    # and save the tempsub
                     tempAnalysis.subjects[subject] = tempSub
+                    
+            # done subject, get the shit back
+            mean = np.average(zStandStore, axis=2)
+            std = np.std(zStandStore, axis=2)
+            
+            # now back to the subjects
+            for sub in tempAnalysis.subjects.keys():
+                tempSub = tempAnalysis.subjects[sub]
+                tempDer = tempSub.derivative
+                tempDer = (tempDer - mean) / std
+                tempSub.derivative = tempDer
+                tempAnalysis.subjects[sub] = tempSub  
 
             # now that the Analysis is prepared, we can also just run it here
             tempAnalysis.makeCrossvalidate()
@@ -454,6 +486,8 @@ class Analysis(object):
         maybe we just run both by default, don't know
         '''
         # loop through the networkNodes inside the mask
+        # and z-standardize everything
+        featSummary = np.array([])
         for network in self.mask.networkNodes.keys():
             # create a network object
             tempNetwork = Network(network, self.cvObject)
@@ -461,8 +495,15 @@ class Analysis(object):
             for subject in self.subjects.keys():
                 tempSub = self.subjects[subject]
                 tempDer = tempSub.derivative.feature
-                # normalize the damn features goddamn it
-                tempDer = np.arctanh(tempDer)
+                if featSummary.size == 0:
+                    # fS is empty, assign
+                    featSummary = tempDer[..., None]
+                else:
+                    featSummary = np.concatenate(featSummary, tempDer[..., 
+                                                                      None], 
+                                                 axis=3)
+                
+                
                 tempInd = self.mask.networkIndices[network]
                 tempFeat = {}
                 # see if it is a matrix or vector

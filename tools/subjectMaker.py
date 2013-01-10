@@ -5,6 +5,9 @@ Created on Nov 16, 2012
 
 a short script to generate subject archives from the CPAC output directory
 and store the result on disk in a folder
+
+THIS IS THE SCRIPT YOU ARE LOOKING FOR!!!
+
 '''
 import re
 import os
@@ -51,6 +54,7 @@ def Main(searchDir, templateFile, phenoFile, maskDir, outDir, nProcs):
     phenoLine = open(phenoFile, 'rb').readline()
 
     loopLine = phenoLine.strip().split(',')
+    print(loopLine)
     run = 0
     for pheno in loopLine:
         # check if it is the subject designator which is not a phenotypic info
@@ -93,8 +97,8 @@ def Main(searchDir, templateFile, phenoFile, maskDir, outDir, nProcs):
 
             else:
                 # no phenotypic information, presently we skip these subjects
-                print('didn\'t find ' + subBase + ' in phenofile.'
-                      + ' skipping for now...')
+                # print('didn\'t find ' + subBase + ' in phenofile.'
+                #      + ' skipping for now...')
                 continue
 
             # now loop through the subject line and correctly assign the pheno
@@ -158,4 +162,3 @@ if __name__ == '__main__':
     outDir = sys.argv[5]
     nProcs = int(sys.argv[6])
     Main(searchDir, templateFile, phenoFile, maskDir, outDir, nProcs)
-    pass
