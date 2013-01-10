@@ -306,20 +306,21 @@ class Study(object):
                     # derivative and delete the rest
                     tempSub.derivative = tempDerivatives[derivative]
                     # fisher z-transform it
-                    tempSub.derivative = np.arctanh(tempSub.derivative)
+                    tempFeat = tempSub.derivative.feature
+                    tempFeat = np.arctanh(tempFeat)
+                    tempSub.derivative.feature = tempFeat
                     tempSub.derivativeMasks[mask] = None
                     tempSubs[subject] = tempSub
                     subjectList.append(tempSub.name)
-                    
+
                     # and now add it to the store
                     if zStandStore.size == 0:
                         # doesn't exist yet
-                        zStandStore = tempSub.derivative[..., None]
+                        zStandStore = tempFeat[..., None]
                     else:
                         # concatenate
                         zStandStore = np.concatenate(zStandStore,
-                                                     tempSub.derivative[..., 
-                                                                        None],
+                                                     tempFeat[..., None], 
                                                      axis=2)
                     # and save the tempsub
                     tempAnalysis.subjects[subject] = tempSub
@@ -332,8 +333,9 @@ class Study(object):
             for sub in tempAnalysis.subjects.keys():
                 tempSub = tempAnalysis.subjects[sub]
                 tempDer = tempSub.derivative
-                tempDer = (tempDer - mean) / std
-                tempSub.derivative = tempDer
+                tempFeat = tempDer.feature
+                tempFeat = (tempFeat - mean) / std
+                tempSub.derivative.feature = tempFeat
                 tempAnalysis.subjects[sub] = tempSub  
 
             # now that the Analysis is prepared, we can also just run it here
