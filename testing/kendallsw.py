@@ -1,0 +1,35 @@
+'''
+Created on Jan 9, 2013
+
+@author: surchs
+
+short script to calculate kendalls w
+'''
+import numpy as np
+
+
+def Main():
+    # number of networks and subjects
+    superArray = np.random.random((6, 12))
+    nNetworks = superArray.shape[0]
+    nSubs = superArray.shape[1]
+    subjects = []
+    # calculate the rank for every subject
+
+    # and the mean of all the ranks
+    meanR = 1 / 2 * nNetworks * (nSubs + 1)
+
+    # get the squared rank deviations for every subject
+    subSqSums = np.array([])
+    for sub in subjects:
+        rankDevSq = np.square(subRank - meanRank)
+        subSq = np.append(subSq, rankDevSq)
+
+    # sum of squared deviations
+    sSum = np.sum(subSq)
+
+    kendallW = 12 * sSum / np.square(nNetworks) * (nSubs ** 3 - nSubs)
+
+
+if __name__ == '__main__':
+    pass

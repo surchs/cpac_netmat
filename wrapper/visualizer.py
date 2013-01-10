@@ -18,6 +18,16 @@ def Main(studyFile, analysis):
     f = gzip.open(studyFile)
     study = cPickle.load(f)
     print('Loaded study')
+    # just loop through all analyses and run this shit
+    if analysis == None:
+        print('Running all the analyses in here!')
+        for analysis in study.analyses.keys():
+            Visualize(study, analysis)
+    else:
+        Visualize(study, analysis)
+
+
+def Visualize(study, analysis):
     print('Fetching analysis ' + analysis + ' now. Hold on to your heads!')
     tempAnalysis = study.analyses[analysis]
     networkNames = tempAnalysis.networks.keys()
@@ -130,6 +140,10 @@ def Main(studyFile, analysis):
 
     fig7 = plt.figure(7)
     fig7.suptitle('correlation of absolute errors between networks')
+
+    # another figure for text displays
+    fig8 = plt.figure(0, figsize=(8.5, 11), dpi=150)
+    fig8.suptitle(aName)
 
     loc = 1
 
@@ -273,6 +287,9 @@ def Main(studyFile, analysis):
 
 if __name__ == '__main__':
     studyFile = sys.argv[1]
-    analysis = sys.argv[2]
+    if len(sys.argv) > 2:
+        analysis = sys.argv[2]
+    else:
+        analysis = None
     Main(studyFile, analysis)
     pass

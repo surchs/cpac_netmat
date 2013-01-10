@@ -33,7 +33,9 @@ def executeRuns(run):
     # print('Running feature selection')
     run.selectFeatures()
     # print('Running parameter selection')
-    run.selectParameters()
+    # run.selectParameters()
+    run.gridC = run.cValue
+    run.eValue = run.eValue
     # print('Running model training')
     run.trainModel()
     # print('Running model testing')
@@ -221,6 +223,7 @@ class Study(object):
                 - within: only connections within the network
                 - between: only connections of network nodes with outside nodes
                 - whole: all connections of network nodes (within + between)
+                - brain: all connections in the brain (whole brain)
             7) what kernel to use
             8) C value to begin with in grid search for SVM model
             9) E value to use in SVM model
@@ -303,7 +306,12 @@ class Study(object):
 
             # now that the Analysis is prepared, we can also just run it here
             tempAnalysis.makeCrossvalidate()
-            tempAnalysis.prepareNetworks()
+            if featureFocus == 'brain':
+                # we just want to know about the full brain, run it
+                tempAnalysis.fullBrain()
+            else:
+                tempAnalysis.prepareNetworks()
+
             # and store the object in the dictionary
             self.analyses[tempAnalysis.name] = tempAnalysis
         # Done creating analyses
@@ -364,6 +372,72 @@ class Analysis(object):
         else:
             print('Something about your crossvalidation option ('
                   + str(self.crossvalidate) + ') is not right. Please check!')
+
+    def fullBrain(self):
+        '''
+        Method to run just on the whole brain connectivity, forget about the
+        networks
+        '''
+        # create a network object
+        tempNetwork = Network('Fullbrain', self.cvObject)
+        # and now loop through the subjects
+        for subject in self.subjects.keys():
+            tempSub = self.subjects[subject]
+            tempDer = tempSub.derivative.feature
+            # normalize the damn features goddamn it
+            tempDer = np.arctanh(tempDer)
+            tempFeat = {}
+            # see if it is a matrix or vector
+            if len(tempDer.shape) == 1:
+                # it's a vector
+                tempBrain = tempDer.feature
+
+            elif len(tempDer.shape) == 2:
+                # it's a matrix
+                tempBrainData = copy.deepcopy(tempDer)
+                brainMask = np.ones_like(tempBrainData)
+                brainMask = np.tril(brainMask, -1)
+                tempBrain = tempBrainData[brainMask == 1]
+
+            else:
+                # something wrong, better don't use this subject
+                print('There is something wrong in analysis '
+                      + self.name + ' with subject ' + subject)
+                continue
+
+            tempFeat['brain'] = tempBrain
+            # write the result back into the subject
+            tempSub.feature = tempFeat['brain']
+
+            # and write the stuff to the network
+            tempNetwork.subjects[subject] = tempSub
+
+        # edit the network parameters
+        tempNetwork.gridCv = self.gridCv
+        tempNetwork.featureSelect = self.featureSelect
+        tempNetwork.maxFeat = self.maxFeat
+        tempNetwork.numberCores = self.numberCores
+        tempNetwork.gridCores = self.gridCores
+        tempNetwork.kernel = self.kernel
+        tempNetwork.cValue = self.cValue
+        tempNetwork.eValue = self.eValue
+        tempNetwork.pheno = self.pheno
+
+        # now instead of doing this somewhere else, we will just run them
+        # here
+        tempNetwork.makeRuns()
+        tempNetwork.executeRuns()
+        # now the analysis is done - we need to get the analysis results
+        # back to the network level
+
+        # save the network object to the analysis
+        self.networks['Fullbrain'] = tempNetwork
+        # and print out that it is done
+        print('Done preparing Fullbrain network')
+
+
+
+
 
     def prepareNetworks(self):
         '''
@@ -680,7 +754,7 @@ class Run(object):
 
         # model parameters
         self.kernel = None
-        self.cValue = None
+        self.cValue = 1000
         self.eValue = 0.000001
 
         # are set by running prepareRun()
