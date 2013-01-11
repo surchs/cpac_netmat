@@ -33,9 +33,9 @@ def executeRuns(run):
     # print('Running feature selection')
     run.selectFeatures()
     # print('Running parameter selection')
-    run.selectParameters()
-    # run.gridC = run.cValue
-    # run.eValue = run.eValue
+    # run.selectParameters()
+    run.gridC = run.cValue
+    run.eValue = run.eValue
     # print('Running model training')
     run.trainModel()
     # print('Running model testing')
@@ -127,7 +127,6 @@ class Study(object):
         problemString = 'These were the subjects that caused problems:'
         problemList = []
         run = 0
-        
         for subjectPath in self.subjectPaths:
             # open the file
             tempSubFile = gzip.open(subjectPath, 'rb')
@@ -135,7 +134,7 @@ class Study(object):
             tempSubName = tempSubject.name
 
             # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
-            # this is a temporary solution to change the type of the pheno #
+            # this is a temporary solution to change the type of the pheno
             # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
             for pheno in tempSubject.pheno.keys():
                 tempPheno = tempSubject.pheno[pheno]
@@ -144,7 +143,7 @@ class Study(object):
 
                 tempSubject.pheno[pheno] = tempPheno
             # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
-            # this was a temporary solution to change the type of the pheno #
+            # this was a temporary solution to change the type of the pheno
             # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
 
             # get the masks in the subject
@@ -285,12 +284,6 @@ class Study(object):
             tempAnalysis.maxFeat = maxFeat
             # get the subjects and see if any don't have the derivative
             tempSubs = {}
-            
-            # add functionality to z-standardize
-            zStandStore = np.array([])
-            ageMeanStore = np.array([])
-            subjectList = []
-            
             for subject in self.maskedSubjects[mask].keys():
                 # copy the original to make it independent from changes
                 tempSub = copy.deepcopy(self.maskedSubjects[mask][subject])
@@ -306,47 +299,10 @@ class Study(object):
                     # nothing wrong with this one - assign the correct
                     # derivative and delete the rest
                     tempSub.derivative = tempDerivatives[derivative]
-                    # fisher z-transform it
-                    tempFeat = tempSub.derivative.feature
-                    tempFeat = np.arctanh(tempFeat)
-                    tempPheno = tempSub.pheno[pheno]
-                    tempSub.derivative.feature = tempFeat
                     tempSub.derivativeMasks[mask] = None
                     tempSubs[subject] = tempSub
-                    subjectList.append(tempSub.name)
 
-                    # and now add it to the store
-                    if zStandStore.size == 0:
-                        # doesn't exist yet
-                        zStandStore = tempFeat[..., None]
-                    else:
-                        # concatenate
-                        zStandStore = np.concatenate((zStandStore, 
-                                                      tempFeat[..., None]), 
-                                                     axis=2)
-                        
-                    ageMeanStore = np.append(ageMeanStore, tempPheno)
-                    # and save the tempsub
                     tempAnalysis.subjects[subject] = tempSub
-                    
-            # done subject, get the shit back
-            mean = np.average(zStandStore, axis=2)
-            std = np.std(zStandStore, axis=2)
-            meanAge = np.average(ageMeanStore)
-            
-            # now back to the subjects
-            for sub in tempAnalysis.subjects.keys():
-                tempSub = tempAnalysis.subjects[sub]
-                tempDer = tempSub.derivative
-                tempFeat = tempDer.feature
-                tempFeat = (tempFeat - mean) / std
-                tempSub.derivative.feature = tempFeat
-                
-                tempPheno = tempSub.pheno[pheno]
-                tempPheno = tempPheno - meanAge
-                tempSub.pheno[pheno] = tempPheno
-                
-                tempAnalysis.subjects[sub] = tempSub  
 
             # now that the Analysis is prepared, we can also just run it here
             tempAnalysis.makeCrossvalidate()
@@ -428,6 +384,8 @@ class Analysis(object):
         for subject in self.subjects.keys():
             tempSub = self.subjects[subject]
             tempDer = tempSub.derivative.feature
+            # normalize the damn features goddamn it
+            tempDer = np.arctanh(tempDer)
             tempFeat = {}
             # see if it is a matrix or vector
             if len(tempDer.shape) == 1:
@@ -478,6 +436,9 @@ class Analysis(object):
         print('Done preparing Fullbrain network')
 
 
+
+
+
     def prepareNetworks(self):
         '''
         Method to loop through the network/s and get the appropriate
@@ -500,6 +461,8 @@ class Analysis(object):
             for subject in self.subjects.keys():
                 tempSub = self.subjects[subject]
                 tempDer = tempSub.derivative.feature
+                # normalize the damn features goddamn it
+                tempDer = np.arctanh(tempDer)
                 tempInd = self.mask.networkIndices[network]
                 tempFeat = {}
                 # see if it is a matrix or vector
@@ -969,7 +932,7 @@ class Run(object):
 
         # if for some reason this doesn't work, just paste directly
         parameters = {'C': parameterOne}
-        gridModel = svm.SVR(kernel=self.kernel, epsilon=self.eValue, degree=2)
+        gridModel = svm.SVR(kernel=self.kernel, epsilon=self.eValue)
         firstTrainModel = gs.GridSearchCV(gridModel,
                                           parameters,
                                           cv=self.gridCv,
