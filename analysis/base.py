@@ -16,6 +16,7 @@ import cPickle
 import numpy as np
 from sklearn import svm
 import multiprocessing as mp
+from scipy import stats as st
 import sklearn.grid_search as gs
 import sklearn.cross_validation as cv
 import sklearn.feature_selection as fs
@@ -740,6 +741,7 @@ class Network(object):
         # map back the results and also extract the predictions
         for run in resultList:
             # loop through the shit
+            print run.number, len(run.featureIndex)
             self.truePheno = np.append(self.truePheno,
                                        run.testPheno)
             self.predictedPheno = np.append(self.predictedPheno,
@@ -883,6 +885,27 @@ class Run(object):
             # we will not run feature selection, just set features to all
             featureIndex = np.ones(numberFeatures)
 
+        elif self.featureSelect == 'corr':
+            # we are using the features with significant correlations
+            self.trainFeature
+            self.trainPheno
+
+            featureIndex = np.zeros_like(self.trainFeature[0, ...], dtype=int)
+            corrVec = np.zeros_like(featureIndex, dtype=float)
+
+            for col in range(len(featureIndex)):
+                tempCol = self.trainFeature[..., col]
+                
+                tempCorr = st.pearsonr(tempCol, self.trainPheno)
+                if tempCorr[1] < 0.001:
+                    # this feature is significant
+                    featureIndex[col] = 1
+                    # print('SUPERSIGNIFICANT')
+                else:
+                    # this is not significant
+                    continue
+
+
         elif self.featureSelect == 'rfe':
             # alright, we are using rfe for feature selection
             # prepare estimator object for feature selection
@@ -942,6 +965,9 @@ class Run(object):
 
         # done, now regardless of operation, we have the feature index
         # assign the values back to the object
+        print('MADEITHERE')
+        print(featureIndex.shape)
+        print(self.trainFeature.shape)
         bestTrainFeatures = self.trainFeature[..., featureIndex == 1]
         self.trainFeature = bestTrainFeatures
         self.featureIndex = featureIndex
