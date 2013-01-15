@@ -12,6 +12,7 @@ import numpy as np
 from scipy import stats as st
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages as pdf
+from matplotlib.axis import Axis
 
 
 def Main(studyFile, analysis):
@@ -33,6 +34,8 @@ def Visualize(study, analysis):
     networkNames = tempAnalysis.networks.keys()
     networkNames.sort()
     numberNetworks = len(networkNames)
+    tempNet = tempAnalysis.networks.values()[0]
+    numberSubjects = len(tempNet.truePheno)
     aName = analysis
 
     valueDict = {}
@@ -41,6 +44,7 @@ def Visualize(study, analysis):
     maeList = []
     normCount = 0
     # a matrix to store networks by subjects prediction-errors for crosscorr
+    kendallMat = np.array([])
     netErrMat = np.array([])
     netAbsMat = np.array([])
 
@@ -54,6 +58,15 @@ def Visualize(study, analysis):
         errList.append(tempErr)
         tempAbs = np.absolute(tempErr)
         tempMae = np.mean(tempAbs)
+        # now rank those ages and store the ranks in the matrix to calculate
+        # Kendall's W
+        # must be in the same order for all networks
+        tempRanks = np.argsort(tempTrue)
+        if kendallMat.size == 0:
+            kendallMat = tempRanks[None, ...]
+        else:
+            kendallMat = np.concatenate((kendallMat, tempRanks[None, ...]),
+                                        axis=0)
 
         if netErrMat.size == 0:
             # first entry, populate
@@ -89,7 +102,7 @@ def Visualize(study, analysis):
         # put the dictionary in the valueDict
         valueDict[network] = tempDict
 
-    # now run the tests to determine if we can the ANOVA not implemented yet
+    # now run the tests to determine if we can run the ANOVA
     if shappStore.max() >= 0.05:
         print 'All networks are nicely normally distributed'
         # now run the ANOVA thing - right now, we run just everything
@@ -107,6 +120,15 @@ def Visualize(study, analysis):
                + str(numberNetworks)
                + ' networks are normally distributed')
         anova = (999, 999)
+
+    # now do the fancy Kendall's W business
+    # first get the vector of summed total ranks across all networks (cols)
+    sumRankVec = np.sum(kendallMat, axis=0)
+    meanRank = 1 / 2 * numberNetworks * (numberSubjects + 1)
+    sumSquaredDevs = np.sum((sumRankVec - meanRank) ** 2)
+    kendallsW = 12 * sumSquaredDevs / (numberNetworks ** 2 /
+                                        (numberSubjects ** 3 - numberSubjects))
+    txtKendallsW = str(kendallsW)
 
     # now cols are hardcoded and rows depend on them
     cols = 2.0
@@ -212,7 +234,8 @@ def Visualize(study, analysis):
               + str(np.round(np.std(trueAge), 2)) + ')')
 
     statString = (txtName + '\n' + txtKernel + '\n' + txtFeat
-                  + '\n' + txtFolds + '\n' + txtAnova + '\n' + txtAge)
+                  + '\n' + txtFolds + '\n' + txtAnova + '\n' + txtAge + '\n'
+                  + txtKendallsW)
     # + txtRmse + '\n\n'
     dynString = (txtMae + '\n\n' + txtCorr + '\n\n'
                  + txtParm)

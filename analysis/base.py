@@ -128,7 +128,7 @@ class Study(object):
         problemString = 'These were the subjects that caused problems:'
         problemList = []
         run = 0
-        
+
         for subjectPath in self.subjectPaths:
             # open the file
             tempSubFile = gzip.open(subjectPath, 'rb')
@@ -286,12 +286,12 @@ class Study(object):
             tempAnalysis.maxFeat = maxFeat
             # get the subjects and see if any don't have the derivative
             tempSubs = {}
-            
+
             # add functionality to z-standardize
             zStandStore = np.array([])
             ageMeanStore = np.array([])
             subjectList = []
-            
+
             for subject in self.maskedSubjects[mask].keys():
                 # copy the original to make it independent from changes
                 tempSub = copy.deepcopy(self.maskedSubjects[mask][subject])
@@ -322,19 +322,19 @@ class Study(object):
                         zStandStore = tempFeat[..., None]
                     else:
                         # concatenate
-                        zStandStore = np.concatenate((zStandStore, 
-                                                      tempFeat[..., None]), 
+                        zStandStore = np.concatenate((zStandStore,
+                                                      tempFeat[..., None]),
                                                      axis=2)
-                        
+
                     ageMeanStore = np.append(ageMeanStore, tempPheno)
                     # and save the tempsub
                     tempAnalysis.subjects[subject] = tempSub
-                    
+
             # done subject, get the shit back
             mean = np.average(zStandStore, axis=2)
             std = np.std(zStandStore, axis=2)
             meanAge = np.average(ageMeanStore)
-            
+
             # now back to the subjects
             for sub in tempAnalysis.subjects.keys():
                 tempSub = tempAnalysis.subjects[sub]
@@ -342,12 +342,12 @@ class Study(object):
                 tempFeat = tempDer.feature
                 tempFeat = (tempFeat - mean) / std
                 tempSub.derivative.feature = tempFeat
-                
+
                 tempPheno = tempSub.pheno[pheno]
                 tempPheno = tempPheno - meanAge
                 tempSub.pheno[pheno] = tempPheno
-                
-                tempAnalysis.subjects[sub] = tempSub  
+
+                tempAnalysis.subjects[sub] = tempSub
 
             # now that the Analysis is prepared, we can also just run it here
             tempAnalysis.makeCrossvalidate()
@@ -477,7 +477,6 @@ class Analysis(object):
         self.networks['Fullbrain'] = tempNetwork
         # and print out that it is done
         print('Done preparing Fullbrain network')
-
 
     def prepareNetworks(self):
         '''
