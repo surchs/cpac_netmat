@@ -216,6 +216,8 @@ def Visualize(study, analysis):
         tSP4 = fig4.add_subplot(rows, cols, loc, title=network)
         tSP4.plot(tD['true'], tD['true'])
         tSP4.plot(tD['true'], tD['pred'], 'co')
+
+
         # add 1 to the localization variable
         loc += 1
 

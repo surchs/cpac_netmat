@@ -14,7 +14,22 @@ def Main():
     nNetworks = superArray.shape[0]
     nSubs = superArray.shape[1]
     subjects = []
+    subRanks = np.array([])
+    # mean total value of ranks
+    meanRank = 1 / 2 * nNetworks * (nSubs + 1)
+    
+    
     # calculate the rank for every subject
+    for subject in subjects:
+        subRatings = np.array({})
+        for rater in raters:
+            # get the rating from the current network
+            subRating = ...
+            subRatings = np.append(subRatings, subRating)
+            
+        
+        
+        
 
     # and the mean of all the ranks
     meanR = 1 / 2 * nNetworks * (nSubs + 1)
