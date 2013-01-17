@@ -112,7 +112,7 @@ def Visualize(study, analysis):
     tempNet = tempAnalysis.networks.values()[0]
     numberSubjects = float(len(tempNet.truePheno))
     aName = analysis
-    netFeatInd, networkNumbers = FeatureIndex(tempAnalysis)
+    # netFeatInd, networkNumbers = FeatureIndex(tempAnalysis)
 
     valueDict = {}
     shappStore = np.array([])
@@ -148,6 +148,7 @@ def Visualize(study, analysis):
                                         axis=0)
             
         # now get the features for this network
+        '''
         meanFeatures = NetworkFeatures(tempNetwork)
         # store the features under the name of the network they connect to
         netInd = netFeatInd[network]
@@ -160,6 +161,7 @@ def Visualize(study, analysis):
             netNumber = networkNumbers[netNum]
             # store this stuff
             tempFeatStore[netNum] = meanFeatures[netInd==netNumber]
+        '''
 
         if netErrMat.size == 0:
             # first entry, populate
@@ -192,7 +194,7 @@ def Visualize(study, analysis):
         tempDict['std'] = tempStd
         tempDict['shapp'] = tempShapp
         tempDict['mae'] = tempMae
-        tempDict['weights'] = tempFeatStore
+        # tempDict['weights'] = tempFeatStore
         # put the dictionary in the valueDict
         valueDict[network] = tempDict
 
@@ -327,7 +329,9 @@ def Visualize(study, analysis):
         # make the loop for the network boxplot figures
         # for the boxplots, we have to append the data to a list
         # first get the current list of networks
+        '''
         weightDict = tD['weights']
+        
         netWeightList = []
         for netName in weightDict.keys():
             netWeightList.append(weightDict[netName])
@@ -349,9 +353,11 @@ def Visualize(study, analysis):
         # now store figure in list
         nitFigList.append(tempFigure)
 
-        loc += 1
         figIds.append(loopFigId)
         loopFigId += 1
+        '''
+        
+        loc += 1
 
     # now create the text for the whole study
     txtName = ('The name of the current analysis is ' + aName)

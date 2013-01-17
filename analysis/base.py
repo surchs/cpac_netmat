@@ -357,17 +357,14 @@ class Study(object):
             else:
                 tempAnalysis.prepareNetworks()
 
+            # WORKAROUND HACK...
+            # kill the subjects after running to save space
+            tempAnalysis.subjects = None
+            
             # and store the object in the dictionary
             self.analyses[tempAnalysis.name] = tempAnalysis
         # Done creating analyses
         print('Done creating all the analyses')
-        aString = 'Here are all the analyses we presently have in the study:'
-        for analysis in self.analyses.keys():
-            tempAnalysis = self.analyses[analysis]
-            aString = (aString +
-                       '\n    ' + tempAnalysis.name + ' : '
-                       + str(len(tempAnalysis.subjects.keys())) + ' subjects')
-        print(aString)
 
 
 class Analysis(object):
@@ -964,9 +961,6 @@ class Run(object):
 
         # done, now regardless of operation, we have the feature index
         # assign the values back to the object
-        print('MADEITHERE')
-        print(featureIndex.shape)
-        print(self.trainFeature.shape)
         bestTrainFeatures = self.trainFeature[..., featureIndex == 1]
         self.trainFeature = bestTrainFeatures
         self.featureIndex = featureIndex
