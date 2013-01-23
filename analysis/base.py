@@ -360,7 +360,7 @@ class Study(object):
             # WORKAROUND HACK...
             # kill the subjects after running to save space
             tempAnalysis.subjects = None
-            
+
             # and store the object in the dictionary
             self.analyses[tempAnalysis.name] = tempAnalysis
         # Done creating analyses
@@ -891,7 +891,7 @@ class Run(object):
 
             for col in range(len(featureIndex)):
                 tempCol = self.trainFeature[..., col]
-                
+
                 tempCorr = st.pearsonr(tempCol, self.trainPheno)
                 if tempCorr[1] < 0.001:
                     # this feature is significant
