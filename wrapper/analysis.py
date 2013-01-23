@@ -25,6 +25,8 @@ def Main(studyName, dataPath, subjectList, numberCores, configFile, outFile):
     print('Study is essentially done, folks. Go home')
     start = time.time()
     f = gzip.open(outFile, 'wb')
+    # WORKAROUND Delete subjects to save data
+    study.maskedSubjects = None
     print('Start saving study')
     cPickle.dump(study, f, 2)
     stop = time.time()

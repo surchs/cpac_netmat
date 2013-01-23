@@ -12,7 +12,7 @@ import numpy as np
 from scipy import stats as st
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages as pdf
-
+from matplotlib import ticker as tc
 
 def FeatureIndex(analysis):
     # got an analysis, get one of the masks out
@@ -24,7 +24,7 @@ def FeatureIndex(analysis):
     for network in mask.networkNodes.keys():
         networkNumbers[network] = run
         run += 1
-
+        
     # now recreate that connectivity matrix and enter the matrices
     maskNodes = float(len(mask.nodes))
     indexMat = np.zeros((maskNodes, maskNodes))
@@ -39,10 +39,9 @@ def FeatureIndex(analysis):
         tempInd = mask.networkIndices[network]
         # and get the network number
         tempNumber = networkNumbers[network]
-
         # grab the correct columns and then put the correct numbers in there
         indexMat[..., tempInd] = tempNumber
-
+        
     # second pass: get the numbers out again and store them in vectors
     for network in mask.networkIndices.keys():
         # grab the network index from the mask
@@ -56,18 +55,18 @@ def FeatureIndex(analysis):
         tempMask = np.tril(tempMask, -1)
         # and put it in the variable
         tempWithin = tempWithinNet[tempMask == 1]
-
+        
         # now for between - delete the within rows
         tempBetweenNet = np.delete(tempNet, tempInd, 1)
         # now stretch it out
         tempBetween = np.reshape(tempBetweenNet,
                                  tempBetweenNet.size)
-
+        
         # and lastly for the whole connectivity
         tempWhole = np.append(tempWithin, tempBetween)
-
+        
         netFeatInd[network] = tempWhole
-
+    
     # and print some stuff
     return netFeatInd, networkNumbers
 
@@ -85,7 +84,7 @@ def NetworkFeatures(network):
         else:
             weightMat = np.concatenate((weightMat, tempWeights[None, ...]),
                                        axis=0)
-
+        
     # now get the goddamn mean
     meanFeatures = np.mean(weightMat, axis=0)
     return meanFeatures
@@ -113,7 +112,7 @@ def Visualize(study, analysis):
     tempNet = tempAnalysis.networks.values()[0]
     numberSubjects = float(len(tempNet.truePheno))
     aName = analysis
-    netFeatInd, networkNumbers = FeatureIndex(tempAnalysis)
+    # netFeatInd, networkNumbers = FeatureIndex(tempAnalysis)
 
     valueDict = {}
     shappStore = np.array([])
@@ -147,21 +146,22 @@ def Visualize(study, analysis):
         else:
             kendallMat = np.concatenate((kendallMat, ranks[None, ...]),
                                         axis=0)
-
+            
         # now get the features for this network
+        '''
         meanFeatures = NetworkFeatures(tempNetwork)
         # store the features under the name of the network they connect to
-
         netInd = netFeatInd[network]
         netInd = netInd[None, ...]
         print('meanFeat ' + str(meanFeatures.shape))
         print('netInd ' + str(netInd.shape))
-
+            
         tempFeatStore = {}
         for netNum in networkNumbers.keys():
             netNumber = networkNumbers[netNum]
             # store this stuff
-            tempFeatStore[netNum] = meanFeatures[netInd == netNumber]
+            tempFeatStore[netNum] = meanFeatures[netInd==netNumber]
+        '''
 
         if netErrMat.size == 0:
             # first entry, populate
@@ -194,7 +194,7 @@ def Visualize(study, analysis):
         tempDict['std'] = tempStd
         tempDict['shapp'] = tempShapp
         tempDict['mae'] = tempMae
-        tempDict['weights'] = tempFeatStore
+        # tempDict['weights'] = tempFeatStore
         # put the dictionary in the valueDict
         valueDict[network] = tempDict
 
@@ -219,7 +219,7 @@ def Visualize(study, analysis):
 
     # now do the fancy Kendall's W business
     # first get the vector of summed total ranks across all networks (cols)
-
+    
     print('Kendalls')
     print('nNet = ' + str(numberNetworks) + ' nSub = ' + str(numberSubjects))
     print(kendallMat.shape)
@@ -229,7 +229,7 @@ def Visualize(study, analysis):
     print(meanRank)
     sumSquaredDevs = np.sum((sumRankVec - meanRank) ** 2)
     print(sumSquaredDevs)
-    kendallsW = 12.0 * sumSquaredDevs / ((numberNetworks ** 2.0) *
+    kendallsW = 12.0 * sumSquaredDevs / ((numberNetworks ** 2.0) * 
                                          ((numberSubjects ** 3)
                                            - numberSubjects))
     txtKendallsW = ('Kendall\'s W = ' + str(kendallsW))
@@ -310,8 +310,8 @@ def Visualize(study, analysis):
                    + str(np.round(tempNet.eValue, 6)) + '\n')
 
         numberFolds = len(tempNet.cvObject)
-        trueAge = tempNet.truePheno
-
+        trueAge = tempNet.truePheno       
+        
         errorVarList.append(tD['error'])
         errorNameList.append(network)
 
@@ -324,23 +324,22 @@ def Visualize(study, analysis):
         tSP4 = fig4.add_subplot(rows, cols, loc, title=network)
         tSP4.plot(tD['true'], tD['true'])
         tSP4.plot(tD['true'], tD['pred'], 'co')
-
-        tSP6 = fig6.add_subplot(rows, cols, loc, title=network)
-        tSP6.hist(tD[network], bins=20)
-        # add 1 to the localization variable
-
+        
+        
         # make the loop for the network boxplot figures
         # for the boxplots, we have to append the data to a list
         # first get the current list of networks
+        '''
         weightDict = tD['weights']
+        
         netWeightList = []
         for netName in weightDict.keys():
             netWeightList.append(weightDict[netName])
             print(network + ' ' + netName + ' ' + str(len(weightDict[netName])))
-
+            
         print(network + ' netweightlength ' + str(len(netWeightList)))
-
-        # got all the weight vectors in here, now create a figure and
+            
+        # got all the weight vectors in here, now create a figure and 
         # use loopFigId as index
         tempFigure = plt.figure(loopFigId)
         tempSubPlot = tempFigure.add_subplot(111)
@@ -354,9 +353,11 @@ def Visualize(study, analysis):
         # now store figure in list
         nitFigList.append(tempFigure)
 
-        loc += 1
         figIds.append(loopFigId)
         loopFigId += 1
+        '''
+        
+        loc += 1
 
     # now create the text for the whole study
     txtName = ('The name of the current analysis is ' + aName)
@@ -450,7 +451,8 @@ def Visualize(study, analysis):
     for figure in nitFigList:
         pp.savefig(figure)
     pp.close()
-
+    
+    
     plt.close(1)
     plt.close(2)
     plt.close(3)
@@ -460,6 +462,7 @@ def Visualize(study, analysis):
     plt.close(7)
     for figId in figIds:
         plt.close(figId)
+    
 
     print '\nDone saving. Have a nice day.'
 
