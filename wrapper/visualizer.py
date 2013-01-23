@@ -12,7 +12,86 @@ import numpy as np
 from scipy import stats as st
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages as pdf
-from matplotlib.axis import Axis
+# from matplotlib.axis import Axis
+
+
+def FeatureIndex(analysis):
+    # got an analysis, get one of the masks out
+    # mask = analysis.masks.values()[0]
+    mask = analysis.mask
+    print('these are the masks: ')
+    print(analysis.mask)
+    print('The mask name is ' + mask.name)
+    # store the numbers of the networks so I know what I am fucking entering
+    networkNumbers = {}
+    run = 0.0
+    for network in mask.networkNodes.keys():
+        networkNumbers[network] = run
+        run += 1
+
+    # now recreate that connectivity matrix and enter the matrices
+    maskNodes = float(len(mask.nodes))
+    indexMat = np.zeros((maskNodes, maskNodes))
+    print(indexMat.shape)
+    # prepare the feature index for the different networks
+    netFeatInd = {}
+    # and now do what you did to the connectivity matrix just this time enter
+    #
+    # first pass: get those numbers in there
+    for network in mask.networkIndices.keys():
+        # grab the network index from the mask
+        tempInd = mask.networkIndices[network]
+        # and get the network number
+        tempNumber = networkNumbers[network]
+        # grab the correct rows and then put the correct numbers in there
+        indexMat[tempInd, ...] = tempNumber
+
+    # second pass: get the numbers out again and store them in vectors
+    for network in mask.networkIndices.keys():
+        # grab the network index from the mask
+        tempInd = mask.networkIndices[network]
+        # first get the rows belonging to the network
+        tempNet = indexMat[tempInd, ...]
+        # then get the matrix belonging to the within features
+        tempWithinNet = tempNet[..., tempInd]
+        # and now only take the lower triangle
+        tempMask = np.ones_like(tempWithinNet)
+        tempMask = np.tril(tempMask, -1)
+        # and put it in the variable
+        tempWithin = tempWithinNet[tempMask == 1]
+
+        # now for between - delete the within rows
+        tempBetweenNet = np.delete(tempNet, tempInd, 1)
+        # now stretch it out
+        tempBetween = np.reshape(tempBetweenNet,
+                                 tempBetweenNet.size)
+
+        # and lastly for the whole connectivity
+        tempWhole = np.append(tempWithin, tempBetween)
+
+        netFeatInd[network] = tempWhole
+
+    # and print some stuff
+    return netFeatInd, networkNumbers
+
+
+def NetworkFeatures(network):
+    # get the different feature weights from the different runs
+    weightMat = np.array([])
+    for run in network.runs.keys():
+        tempRun = network.runs[run]
+        tempModel = tempRun.model
+        tempWeights = tempModel.coef_
+        # get the shit in the matrix
+        if weightMat.size == 0:
+            weightMat = tempWeights[None, ...]
+        else:
+            weightMat = np.concatenate((weightMat, tempWeights[None, ...]),
+                                       axis=0)
+
+    # now get the goddamn mean
+    meanFeatures = np.mean(weightMat, axis=0)
+    return meanFeatures
 
 
 def Main(studyFile, analysis):
@@ -33,10 +112,11 @@ def Visualize(study, analysis):
     tempAnalysis = study.analyses[analysis]
     networkNames = tempAnalysis.networks.keys()
     networkNames.sort()
-    numberNetworks = len(networkNames)
+    numberNetworks = float(len(networkNames))
     tempNet = tempAnalysis.networks.values()[0]
-    numberSubjects = len(tempNet.truePheno)
+    numberSubjects = float(len(tempNet.truePheno))
     aName = analysis
+    netFeatInd, networkNumbers = FeatureIndex(tempAnalysis)
 
     valueDict = {}
     shappStore = np.array([])
@@ -45,6 +125,7 @@ def Visualize(study, analysis):
     normCount = 0
     # a matrix to store networks by subjects prediction-errors for crosscorr
     kendallMat = np.array([])
+    ageMat = np.array([])
     netErrMat = np.array([])
     netAbsMat = np.array([])
 
@@ -61,12 +142,33 @@ def Visualize(study, analysis):
         # now rank those ages and store the ranks in the matrix to calculate
         # Kendall's W
         # must be in the same order for all networks
-        tempRanks = np.argsort(tempTrue)
+        tempRanks = np.argsort(tempPred)
+        ranks = np.empty(len(tempRanks), int)
+        ranks[tempRanks] = np.arange(len(tempRanks))
+        ranks += 1
         if kendallMat.size == 0:
-            kendallMat = tempRanks[None, ...]
+            kendallMat = ranks[None, ...]
         else:
-            kendallMat = np.concatenate((kendallMat, tempRanks[None, ...]),
+            kendallMat = np.concatenate((kendallMat, ranks[None, ...]),
                                         axis=0)
+
+        # now get the features for this network
+        meanFeatures = NetworkFeatures(tempNetwork)
+        # store the features under the name of the network they connect to
+        for netName in netFeatInd.keys():
+            netInd = netFeatInd[netName]
+            print('\n' + netName)
+            print('insidemask = ' + tempAnalysis.mask.name)
+            print('netind ' + str(netInd.shape))
+            print('meanFeat ' + str(meanFeatures.shape))
+            tempFeatStore = {}
+            for netNum in networkNumbers.keys():
+                netNumber = networkNumbers[netNum]
+                # store this stuff
+                tempFeatStore[netNum] = meanFeatures[netInd == netNumber]
+
+            # Store this in the tempDict under the to-connected network
+            tempDict[netName] = tempFeatStore
 
         if netErrMat.size == 0:
             # first entry, populate
@@ -123,12 +225,21 @@ def Visualize(study, analysis):
 
     # now do the fancy Kendall's W business
     # first get the vector of summed total ranks across all networks (cols)
+
+    print('Kendalls')
+    print('nNet = ' + str(numberNetworks) + ' nSub = ' + str(numberSubjects))
+    print(kendallMat.shape)
     sumRankVec = np.sum(kendallMat, axis=0)
-    meanRank = 1 / 2 * numberNetworks * (numberSubjects + 1)
+    print(sumRankVec)
+    meanRank = 1.0 / 2.0 * numberNetworks * (numberSubjects + 1)
+    print(meanRank)
     sumSquaredDevs = np.sum((sumRankVec - meanRank) ** 2)
-    kendallsW = 12 * sumSquaredDevs / (numberNetworks ** 2 /
-                                        (numberSubjects ** 3 - numberSubjects))
-    txtKendallsW = str(kendallsW)
+    print(sumSquaredDevs)
+    kendallsW = 12.0 * sumSquaredDevs / ((numberNetworks ** 2.0) *
+                                         ((numberSubjects ** 3)
+                                           - numberSubjects))
+    txtKendallsW = ('Kendall\'s W = ' + str(kendallsW))
+    print('Kendall\'s W = ' + str(kendallsW))
 
     # now cols are hardcoded and rows depend on them
     cols = 2.0
@@ -217,7 +328,8 @@ def Visualize(study, analysis):
         tSP4.plot(tD['true'], tD['true'])
         tSP4.plot(tD['true'], tD['pred'], 'co')
 
-
+        tSP6 = fig6.add_subplot(rows, cols, loc, title=network)
+        tSP6.hist(tD[network], bins=20)
         # add 1 to the localization variable
         loc += 1
 
@@ -263,9 +375,11 @@ def Visualize(study, analysis):
     fig5.autofmt_xdate()
 
     # and lastly figure 6 with the crosscorrelations
+    '''
     tSP6 = fig6.add_subplot(111)
     # run correlation analysis
     netCorrErr = np.corrcoef(netErrMat)
+    tSP6.pcolor(ageMat)
     tSP6.pcolor(netCorrErr)
     for y in range(netCorrErr.shape[0]):
         for x in range(netCorrErr.shape[1]):
@@ -273,19 +387,21 @@ def Visualize(study, analysis):
                      horizontalalignment='center',
                      verticalalignment='center',
                      )
+    '''
 
     # and then the same thing for absolute errors
     tSP7 = fig7.add_subplot(111)
     # run correlation analysis
     netCorrAbs = np.corrcoef(netAbsMat)
-    tSP7.pcolor(netCorrAbs)
+    tSP7.pcolor(kendallMat)
+    '''tSP7.pcolor(netCorrAbs)
     for y in range(netCorrAbs.shape[0]):
         for x in range(netCorrAbs.shape[1]):
             tSP7.text(x + 0.5, y + 0.5, '%.2f' % netCorrAbs[y, x],
                      horizontalalignment='center',
                      verticalalignment='center',
                      )
-
+'''
     # adjust the images
     fig1.subplots_adjust(hspace=0.5, wspace=0.5)
     fig2.subplots_adjust(hspace=0.5, wspace=0.5)
@@ -306,6 +422,14 @@ def Visualize(study, analysis):
     pp.savefig(fig6)
     pp.savefig(fig7)
     pp.close()
+
+    fig1.close()
+    fig2.close()
+    fig3.close()
+    fig4.close()
+    fig5.close()
+    fig6.close()
+    fig7.close()
 
     print '\nDone saving. Have a nice day.'
 
