@@ -6,4 +6,4 @@ Created on Nov 1, 2012
 import phenowave
 import waveselector
 import meisterlein
-import makeSubjects
+import subjectMaker
