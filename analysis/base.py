@@ -148,9 +148,13 @@ class Study(object):
             # this was a temporary solution to change the type of the pheno #
             # TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP #
 
-            # get the masks in the subject
+            # loop through the masks that are stored in the subjects and
+            # get them
             for tempSubMask in tempSubject.masks.values():
                 tempMaskName = tempSubMask.name
+                # make a copy of the subject so I can delete what I don't like
+                # separately for each mask
+                maskSubject = copy.deepcopy(tempSubject)
                 # check if the mask name already exists in the saved masks
                 if tempMaskName in self.masks.keys():
                     # it is already in, compare it to the saved mask
@@ -179,10 +183,10 @@ class Study(object):
                     # create the entry and make it a dictionary
                     self.maskedSubjects[tempMaskName] = {}
 
-                # now get rid of the mask and append the subject to the
-                # correct list
-                tempSubject.mask = None
-                self.maskedSubjects[tempMaskName][tempSubName] = tempSubject
+                # get rid of all the masks before adding the subject to the
+                # correct mask key name
+                maskSubject.masks = None
+                self.maskedSubjects[tempMaskName][tempSubName] = maskSubject
 
             # done with the subject, print a quick notice
             run += 1
@@ -195,6 +199,7 @@ class Study(object):
         print('\n\nDone with fetching subjects'
               + '\nwe have ' + str(len(self.maskedSubjects.keys())) + ' masks')
         maskString = 'These are the masks we have:'
+        # show them what we have got
         for mask in self.maskedSubjects.keys():
             maskString = (maskString
                           + '\n    ' + mask + ' : '
@@ -287,6 +292,7 @@ class Study(object):
             # get the subjects and see if any don't have the derivative
             tempSubs = {}
 
+            # /FLAG
             # add functionality to z-standardize
             zStandStore = np.array([])
             ageMeanStore = np.array([])
@@ -340,6 +346,7 @@ class Study(object):
                 tempSub = tempAnalysis.subjects[sub]
                 tempDer = tempSub.derivative
                 tempFeat = tempDer.feature
+                # Z-Standardization right here
                 tempFeat = (tempFeat - mean) / std
                 tempSub.derivative.feature = tempFeat
 
@@ -348,6 +355,7 @@ class Study(object):
                 tempSub.pheno[pheno] = tempPheno
 
                 tempAnalysis.subjects[sub] = tempSub
+            # \Flag
 
             # now that the Analysis is prepared, we can also just run it here
             tempAnalysis.makeCrossvalidate()
@@ -627,7 +635,7 @@ class Network(object):
         runID = 1
         nFolds = self.cvObject.k
         for cvInstance in self.cvObject:
-            # create a new instance of the fold class
+            # create a new instance of the run class
             run = Run(str(runID))
             run.kernel = self.kernel
             train = cvInstance[0]
@@ -900,7 +908,6 @@ class Run(object):
                 else:
                     # this is not significant
                     continue
-
 
         elif self.featureSelect == 'rfe':
             # alright, we are using rfe for feature selection
