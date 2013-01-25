@@ -60,6 +60,8 @@ def Main(inFile):
     print(len(testNetwork.subjects.keys()))
     print(len(testNetwork.cvObject))
     testNetwork.makeRuns()
+    # now run the runs
+    testNetwork.executeRuns()
     print('\nGot here')
 
 
