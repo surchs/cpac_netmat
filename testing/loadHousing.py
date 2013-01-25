@@ -54,6 +54,7 @@ def Main(inFile):
     testNetwork = an.Network('test', cvObject)
     testNetwork.subjects = subDir
     testNetwork.pheno = 'houseprice'
+    testNetwork.featureSelect = 'None'
     # set number of parallel processes in Network
     testNetwork.numberCores = 10
     # make the runs
