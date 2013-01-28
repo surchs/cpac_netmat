@@ -278,7 +278,7 @@ def runShitOnCv(features, labels, cvObject, cDict):
     return (predictedLabels, trueLabels, errors, cValues)
 
 
-def Main(strategy, outFile, pdfFile):
+def Main(outFile, pdfFile, strategy):
     '''
     Get the data from sklearn
 
