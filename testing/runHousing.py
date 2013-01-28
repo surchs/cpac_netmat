@@ -369,7 +369,7 @@ def Main(outFile, pdfFile, strategy):
         fig4 = plt.figure(4, figsize=(8.5, 11), dpi=150)
         fig4.suptitle('predicted over true age')
 
-        tSP4 = fig4.add_subplot(111, title=result)
+        tSP4 = fig4.add_subplot(111, title=strategy)
         tSP4.plot(tPheno, tPheno)
         tSP4.plot(tPheno, pPheno, 'co')
 
