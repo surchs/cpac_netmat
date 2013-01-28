@@ -287,6 +287,10 @@ def Main(strategy, outFile, pdfFile):
         2) do everything with my classes but run the runs separately
         3) replicate what my classes do without my classes
     '''
+    print('\n\nHello there, welcome to testing things. These are our params:'
+          + '\nstrategy:' + strategy + ' / outFile:' + outFile + ' / pdfFile:'
+          + pdfFile)
+    print('Not happy with it? Probably your fault! Enjoy!\n')
     dataset = load_boston()
     features = dataset.data
     labels = dataset.target
