@@ -360,7 +360,6 @@ def Main(strategy, outFile, pdfFile):
              cValues) = runShitOnCv(features, labels, cvObject, cDict)
         else:
             print('Bullshit arguments!')
-            break
 
         # and now display the stuff
         fig4 = plt.figure(4, figsize=(8.5, 11), dpi=150)
