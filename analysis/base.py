@@ -989,12 +989,15 @@ class Run(object):
         # provide the parameters for the first, coarse pass
         # set of parameters
         # here we use an exponential series to cover more parameters
-        expArrayOne = np.arange(-4, 4, 1)
-        baseArray = np.ones_like(expArrayOne, dtype='float32') * 10
-        parameterOne = np.power(baseArray, expArrayOne).tolist()
+        cExpOne = np.arange(-4, 4, 1)
+        cBaseOne = np.ones_like(cExpOne, dtype='float32') * 10
+        cParamOne = np.power(cBaseOne, cExpOne).tolist()
+        eExpOne = np.arange(-8, 0, 1)
+        eBaseOne = np.ones_like(eExpOne, dtype='float32') * 10
+        eParamOne = np.power(eBaseOne, eExpOne).tolist()
 
         # if for some reason this doesn't work, just paste directly
-        parameters = {'C': parameterOne}
+        parameters = {'C': cParamOne, 'epsilon': eParamOne}
         gridModel = svm.SVR(kernel=self.kernel, epsilon=self.eValue, degree=2)
         firstTrainModel = gs.GridSearchCV(gridModel,
                                           parameters,
@@ -1004,15 +1007,22 @@ class Run(object):
 
         firstTrainModel.fit(self.trainFeature, self.trainPheno)
         firstPassC = firstTrainModel.best_estimator_.C
+        firstPassE = firstTrainModel.best_estimator_.epsilon
 
-        expFirstC = np.log10(firstPassC)
-        expArrayTwo = np.arange(expFirstC - 1, expFirstC + 1.1, 0.1)
-        baseArrayTwo = np.ones_like(expArrayTwo, dtype='float32') * 10
+        firstExpC = np.log10(firstPassC)
+        cExpTwo = np.arange(firstExpC - 1, firstExpC + 1.1, 0.1)
+        cBaseTwo = np.ones_like(cExpTwo, dtype='float32') * 10
 
-        parameterTwo = np.power(baseArrayTwo, expArrayTwo).tolist()
+        cParamTwo = np.power(cBaseTwo, cExpTwo).tolist()
+
+        firstExpE = np.log10(firstPassE)
+        eExpTwo = np.arange(firstExpE - 1, firstExpE + 1.1, 0.1)
+        eBaseTwo = np.ones_like(eExpTwo, dtype='float32') * 10
+
+        eParamTwo = np.power(eBaseTwo, eExpTwo).tolist()
 
         # in case this causes trouble, paste directly
-        parameters = {'C': parameterTwo}
+        parameters = {'C': cParamTwo, 'epsilon': eParamTwo}
 
         secondTrainModel = gs.GridSearchCV(gridModel,
                                            parameters,
@@ -1022,8 +1032,10 @@ class Run(object):
 
         secondTrainModel.fit(self.trainFeature, self.trainPheno)
         bestC = secondTrainModel.best_estimator_.C
+        bestE = secondTrainModel.best_estimator_.epsilon
 
         self.gridC = bestC
+        self.gridE = bestE
         pass
 
     def trainModel(self):
@@ -1031,7 +1043,7 @@ class Run(object):
         Method to train the model
         '''
         trainModel = svm.SVR(kernel=self.kernel, C=self.gridC,
-                             epsilon=self.eValue)
+                             epsilon=self.gridE)
         trainModel.fit(self.trainFeature, self.trainPheno)
         self.model = trainModel
         pass
