@@ -336,7 +336,7 @@ class Study(object):
                     # and save the tempsub
                     tempAnalysis.subjects[subject] = tempSub
 
-            # done subject, get the shit back
+            # done subject, get the stuff back
             mean = np.average(zStandStore, axis=2)
             std = np.std(zStandStore, axis=2)
             meanAge = np.average(ageMeanStore)
@@ -515,7 +515,7 @@ class Analysis(object):
                     tempWhole = tempDer.feature
 
                 elif len(tempDer.shape) == 2:
-                    # it's a matrix - this shit is more difficult
+                    # it's a matrix - this stuff is more difficult
                     # first get the rows belonging to the network
                     tempNet = tempDer[tempInd, ...]
                     # then get the matrix belonging to the within features
@@ -744,7 +744,7 @@ class Network(object):
 
         # map back the results and also extract the predictions
         for run in resultList:
-            # loop through the shit
+            # loop through the stuff
             print run.number, len(run.featureIndex)
             self.truePheno = np.append(self.truePheno,
                                        run.testPheno)

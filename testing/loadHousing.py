@@ -14,7 +14,26 @@ import numpy as np
 from matplotlib import pyplot as plt
 import cpac_netmat.analysis.base as an
 import cpac_netmat.preprocessing.base as pp
+from sklearn.linear_model import LinearRegression
 from matplotlib.backends.backend_pdf import PdfPages as pdf
+
+
+def compareLogReg(feature, label):
+    '''
+    quick hack to compare the results of a default parameter logistic regression
+    '''
+    nCases = len(label)
+    nTrain = np.floor(nCases / 2.0)
+    trainX = feature[:nTrain]
+    trainY = label[:nTrain]
+    testX = feature[nTrain:]
+    testY = label[nTrain:]
+    
+    logModel = LinearRegression()
+    logModel.fit(trainX, trainY)
+    predY = logModel.predict(testX)
+    
+    return predY, testY
 
 
 def Main(inFile, outFile, pdfFile):
@@ -24,6 +43,9 @@ def Main(inFile, outFile, pdfFile):
     loadFile = open(inFile, 'rb')
     fileLines = loadFile.readlines()
     subDir = {}
+    # storage for comparing other models
+    featMat = np.array([])
+    labVec = np.array([])
 
     subCount = 1
     for line in fileLines:
@@ -48,6 +70,15 @@ def Main(inFile, outFile, pdfFile):
         tempSub.feature = tempFeat
         subDir[subName] = tempSub
         subCount += 1
+        
+        # and add them also to the storage vars
+        if featMat.size == 0:
+            featMat = tempFeat[None, ...]
+        else:
+            featMat = np.concatenate((featMat, tempFeat[None, ...]), axis=0)
+        
+        labVec = np.append(labVec, tempPheno)
+        print(str(featMat.shape) + '/' + str(labVec.shape))
 
     # now make a network of it and run that stuff
     numberSubjects = len(subDir.keys())
@@ -72,6 +103,8 @@ def Main(inFile, outFile, pdfFile):
     testNetwork.makeRuns()
     # now run the runs
     testNetwork.executeRuns()
+    # and also run the other model quickly
+    (modelPred, modelTrue) = compareLogReg(featMat, labVec)
     print('\nGot here')    
     # now save the result
     outF = gzip.open(outFile, 'wb')
@@ -87,11 +120,13 @@ def Main(inFile, outFile, pdfFile):
     tSP4 = fig4.add_subplot(111, title=testNetwork.name)
     tSP4.plot(tPheno, tPheno)
     tSP4.plot(tPheno, pPheno, 'co')
+    tSP4.plot(modelTrue, modelPred, 'mo')
     
     fig4.subplots_adjust(hspace=0.5, wspace=0.5)
     
     pd = pdf(pdfFile)
     pd.savefig(fig4)
+    pd.close()
     plt.close(4)
     print('Just created ' + pdfFile + '\nAll done here!')
 

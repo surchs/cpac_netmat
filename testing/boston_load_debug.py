@@ -7,6 +7,7 @@ import sys
 import numpy as np
 from sklearn.svm import SVR
 from matplotlib import pyplot as plt
+from sklearn.linear_model import LinearRegression
 
 
 def Main(inFile):
@@ -56,6 +57,7 @@ def Main(inFile):
     # finished reading the file, prepare the SVR model. Running with default
     # parameters here
     svrModel = SVR()
+    logModel = LinearRegression()
     
     # dump all the features and labels here
     # stick the labels to the right of the feature matrix:
@@ -71,16 +73,21 @@ def Main(inFile):
     np.savetxt('bld_testY.csv', testY, fmt='%10.5f', delimiter=',')
     
     # everything is dumped, train the model
+    # train both models
     svrModel.fit(trainX, trainY)
+    logModel.fit(trainX, trainY)
     # and predict the test labels from the test features
-    predY = svrModel.predict(testX)
+    predLog = logModel.predict(testX)
+    predSvr = svrModel.predict(testX)
     
     # now dump the predicted Y
-    np.savetxt('bld_predY.csv', predY, fmt='%10.5f', delimiter=',')
+    np.savetxt('bld_predSvrY.csv', predSvr, fmt='%10.5f', delimiter=',')
+    np.savetxt('bld_predLogY.csv', predLog, fmt='%10.5f', delimiter=',')
     
     # and plot everything
     plt.plot(testY, testY, label='true data')
-    plt.plot(testY, predY, 'co', label='SVR')
+    plt.plot(testY, predSvr, 'co', label='SVR')
+    plt.plot(testY, predLog, 'mo', label='LogReg')
     plt.show()
 
 

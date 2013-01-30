@@ -19,6 +19,7 @@ import sklearn.grid_search as gs
 from matplotlib import pyplot as plt
 import cpac_netmat.analysis.base as an
 from sklearn.datasets import load_boston
+from sklearn.datasets import load_diabetes
 import cpac_netmat.preprocessing.base as pp
 from matplotlib.backends.backend_pdf import PdfPages as pdf
 
@@ -28,46 +29,58 @@ def runModel(trainFeatures, trainLabels, testFeatures, testLabels, kernel,
     '''
     Method that runs the model for the other functions
     '''
-    expArrayOne = np.arange(-4, 4, 1)
+    expArrayOne = np.arange(-6, 6, 1)
+    epsExp = np.arange(-10, 0, 1)
     baseArray = np.ones_like(expArrayOne, dtype='float32') * 10
+    epsBase = np.ones_like(epsExp, dtype='float32') * 10
     parameterOne = np.power(baseArray, expArrayOne).tolist()
+    epsParameterOne = np.power(epsBase, epsExp).tolist()
 
     # if for some reason this doesn't work, just paste directly
-    parameters = {'C': parameterOne}
+    parameters = {'C': parameterOne, 'epsilon': epsParameterOne}
     gridModel = svm.SVR(kernel=kernel, epsilon=epsilon, degree=2)
     firstTrainModel = gs.GridSearchCV(gridModel,
                                       parameters,
                                       cv=gridCv,
                                       n_jobs=1,
                                       verbose=0)
-
+    
     firstTrainModel.fit(trainFeatures, trainLabels)
+
     firstPassC = firstTrainModel.best_estimator_.C
+    firstPassE = firstTrainModel.best_estimator_.epsilon
 
     expFirstC = np.log10(firstPassC)
     expArrayTwo = np.arange(expFirstC - 1, expFirstC + 1.1, 0.1)
     baseArrayTwo = np.ones_like(expArrayTwo, dtype='float32') * 10
-
+    expFirstE = np.log10(firstPassE)
+    expArrayTwoE = np.arange(expFirstE - 1, expFirstE + 1.1, 0.1)
+    baseArrayTwoE = np.ones_like(expArrayTwoE, dtype='float32') * 10
+    
     parameterTwo = np.power(baseArrayTwo, expArrayTwo).tolist()
+    parameterTwoE = np.power(baseArrayTwoE, expArrayTwoE).tolist()
 
     # in case this causes trouble, paste directly
-    parameters = {'C': parameterTwo}
+    parameters = {'C': parameterTwo, 'epsilon':parameterTwoE}
 
     secondTrainModel = gs.GridSearchCV(gridModel,
                                        parameters,
                                        cv=gridCv,
                                        n_jobs=1,
                                        verbose=0)
-
+    
     secondTrainModel.fit(trainFeatures, trainLabels)
     bestC = secondTrainModel.best_estimator_.C
+    bestE = secondTrainModel.best_estimator_.epsilon
 
     gridC = bestC
+    gridE = bestE
 
     # now train the model
-    trainModel = svm.SVR(kernel=kernel, C=gridC, epsilon=epsilon)
+    trainModel = svm.SVR(kernel=kernel, C=gridC, epsilon=gridE)
     trainModel.fit(trainFeatures, trainLabels)
     # and predict the labels from the test features
+    # tempPredLabels = trainModel.predict(testFeatures)
     tempPredLabels = trainModel.predict(testFeatures)
     # get the errors
     tempErrors = tempPredLabels - testLabels
@@ -121,6 +134,7 @@ def runShitButNotAll(features, labels, cvObject, cDict):
     '''
     just prepare everything in my classes, then run here
     '''
+    print('Dudedudedude')
 
     numSubs = len(labels)
     subDir = {}
@@ -148,6 +162,9 @@ def runShitButNotAll(features, labels, cvObject, cDict):
     testNetwork.numberCores = cDict['numberCores']
     testNetwork.gridCv = cDict['gridCv']
     testNetwork.gridCores = 1
+    
+    # and now prepare the network
+    testNetwork.makeRuns()
 
     # now instead of running it inside the classes, run here
     trueLabels = np.array([])
@@ -271,11 +288,69 @@ def runShitOnCv(features, labels, cvObject, cDict):
 
         # and append the whole stuff to the mats
         predictedLabels = np.append(predictedLabels, tempPredLabels)
+        print('runshitoncv: ' + str(predictedLabels.shape))
         trueLabels = np.append(trueLabels, testLabels)
         errors = np.append(errors, tempErrors)
         cValues = np.append(cValues, gridC)
-
+   
     return (predictedLabels, trueLabels, errors, cValues)
+
+
+def runShitNoCv(features, labels, cDict):
+    '''
+    replicate the classes function in here to see what happens
+    '''
+    index = np.arange(len(labels))
+    random.shuffle(index)
+    trainSubs = np.floor(len(labels) / 2)
+    train = index[:trainSubs]
+    test = index[trainSubs:]
+    
+    print('numTrain: ' + str(len(train)) + ' numTest: ' + str(len(test)))
+
+    # load parameters
+    epsilon = cDict['eValue']
+    kernel = cDict['kernel']
+    gridCv = cDict['gridCv']
+
+    # now extract features and labels and get cooking
+    trainFeatures = features[train, ...]
+    trainLabels = labels[train]
+    testFeatures = features[test, ...]
+    testLabels = labels[test]
+    # and run the model
+    (predictedLabels,
+     trueLabels,
+     errors,
+     gridC) = runModel(trainFeatures, trainLabels, testFeatures,
+                       testLabels, kernel, gridCv, epsilon)
+
+    return (predictedLabels, trueLabels, errors, gridC)
+
+
+def runShitClean(features, labels):
+    '''
+    module that simply runs a split-half model with standard parameters
+    '''
+    index = np.arange(len(labels))
+    random.shuffle(index)
+    trainSubs = np.floor(len(labels) / 2)
+    train = index[:trainSubs]
+    test = index[trainSubs:]
+    
+    # now extract features and labels and get cooking
+    trainFeatures = features[train, ...]
+    trainLabels = labels[train]
+    testFeatures = features[test, ...]
+    testLabels = labels[test]
+    
+    model = svm.SVR(kernel='linear', C=1, epsilon=0.2)
+    model.fit(trainFeatures, trainLabels)
+    predictedLabels = model.predict(testFeatures)
+    errors = predictedLabels - testLabels
+    dummy = 1
+    
+    return (predictedLabels, testLabels, errors, dummy)
 
 
 def Main(outFile, pdfFile, strategy):
@@ -288,10 +363,11 @@ def Main(outFile, pdfFile, strategy):
         3) replicate what my classes do without my classes
     '''
     print('\n\nHello there, welcome to testing things. These are our params:'
-          + '\nstrategy:' + strategy + ' / outFile:' + outFile + ' / pdfFile:'
+          + '\nstrategy:' + str(strategy) + ' / outFile:' + outFile + ' / pdfFile:'
           + pdfFile)
     print('Not happy with it? Probably your fault! Enjoy!\n')
     dataset = load_boston()
+    # dataset = load_diabetes()
     features = dataset.data
     labels = dataset.target
     numberCases = len(labels)
@@ -314,6 +390,8 @@ def Main(outFile, pdfFile, strategy):
         stSt['ownTrain'] = runShitButNotAll(features, labels, cvObject, cDict)
         stSt['manualCv'] = runShitHereYourself(features, labels, cDict)
         stSt['CvOwnTrain'] = runShitOnCv(features, labels, cvObject, cDict)
+        stSt['noCv'] = runShitNoCv(features, labels, cDict)
+        stSt['clean'] = runShitClean(features, labels)
         # now save the result
         outF = gzip.open(outFile, 'wb')
         cPickle.dump(stSt, outF, protocol=2)
@@ -328,7 +406,12 @@ def Main(outFile, pdfFile, strategy):
             else:
                 (pPheno,
                  tPheno) = stSt[result]
-
+                 
+            # tell a bit about the data
+            print('Plotting ' + result)
+            #print('    pPheno: ' + str(pPheno.shape) + '/' + str(np.max(pPheno)))
+            print('    tPheno ' + str(tPheno.shape))
+            print('    tPheno ' + str(np.max(tPheno)))
             fig4 = plt.figure(4, figsize=(8.5, 11), dpi=150)
             fig4.suptitle('predicted over true age')
 
@@ -337,8 +420,8 @@ def Main(outFile, pdfFile, strategy):
             tSP4.plot(tPheno, pPheno, 'co')
 
             fig4.subplots_adjust(hspace=0.5, wspace=0.5)
-            pdfFile = (pdfFile + '_' + result + '.pdf')
-            pd = pdf(pdfFile)
+            pdfFileName = (pdfFile + '_' + result + '.pdf')
+            pd = pdf(pdfFileName)
             pd.savefig(fig4)
             pd.close()
             plt.close(4)
@@ -362,9 +445,24 @@ def Main(outFile, pdfFile, strategy):
              tPheno,
              errors,
              cValues) = runShitOnCv(features, labels, cvObject, cDict)
+        elif strategy == 'nocv':
+            (pPheno,
+             tPheno,
+             errors,
+             cValues) = runShitNoCv(features, labels, cDict)
+        elif strategy == 'clean':
+            (pPheno,
+             tPheno,
+             errors,
+             cValues) = runShitClean(features, labels)
         else:
             print('Bullshit arguments!')
 
+        # tell a bit about the data
+        print('Plotting ' + strategy)
+        print('    pPheno: ' + str(pPheno.shape) + '/' + str(np.max(pPheno)))
+        print('    tPheno' + str(tPheno.shape) + '/' + str(np.max(tPheno)))
+        
         # and now display the stuff
         fig4 = plt.figure(4, figsize=(8.5, 11), dpi=150)
         fig4.suptitle('predicted over true age')
@@ -374,8 +472,8 @@ def Main(outFile, pdfFile, strategy):
         tSP4.plot(tPheno, pPheno, 'co')
 
         fig4.subplots_adjust(hspace=0.5, wspace=0.5)
-        pdfFile = (pdfFile + '_strategy_' + strategy + '.pdf')
-        pd = pdf(pdfFile)
+        pdfFileName = (pdfFile + '_strategy_' + strategy + '.pdf')
+        pd = pdf(pdfFileName)
         pd.savefig(fig4)
         pd.close()
         plt.close(4)
@@ -384,7 +482,7 @@ def Main(outFile, pdfFile, strategy):
 if __name__ == '__main__':
     outFile = sys.argv[1]
     pdfFile = sys.argv[2]
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4:
         strategy = None
     else:
         strategy = sys.argv[3]
