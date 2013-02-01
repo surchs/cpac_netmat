@@ -105,7 +105,11 @@ def Main(searchDir, templateFile, phenoFile, outDir):
             searchString = (subjectDir + '/' + subject + deriPath
                             + deriFile)
             a = glob.glob(searchString)
-            tempScaPath = a[0]
+            if len(a) == 0:
+                    print(subBase + ' ' + pipeline + ' ' + deriName
+                          + ' doesn\'t exist')
+            else:
+                tempScaPath = a[0]
 
             # pull all the shit together
             storeStuff = (tempScaPath, subAge, subSex)
