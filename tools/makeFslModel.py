@@ -16,7 +16,7 @@ import numpy as np
 import nibabel as nib
 
 
-def Main(searchDir, templateFile, phenoFile):
+def Main(searchDir, templateFile, phenoFile, outDir):
     '''
     method to load the preprocessed stuff and stack it while at the same time
     saving the phenotypic information
@@ -123,8 +123,12 @@ def Main(searchDir, templateFile, phenoFile):
         adultMean = np.mean(adultAge)
 
         # prepare the output stuff
-        fourDFile = (outDir + pipeline + '/fourDTestfile.nii.gz')
-        modelFile = (outDir + pipeline + '/modelTestfile.csv')
+        tempOutDir = (outDir + pipeline)
+        if not os.path.isdir(tempOutDir):
+            os.makedirs(tempOutDir)
+
+        fourDFile = (tempOutDir + '/fourDTestfile.nii.gz')
+        modelFile = (tempOutDir + '/modelTestfile.csv')
 
         fourDmatrix = np.array([])
         csvString = ''
