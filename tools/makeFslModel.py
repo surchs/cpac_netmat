@@ -16,7 +16,7 @@ import numpy as np
 import nibabel as nib
 
 
-def Main(searchDir, templateFile, phenoFile, outDir):
+def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
     '''
     method to load the preprocessed stuff and stack it while at the same time
     saving the phenotypic information
@@ -33,14 +33,25 @@ def Main(searchDir, templateFile, phenoFile, outDir):
 
     phenoIndex = {}
     phenoLine = open(phenoFile, 'rb').readline()
+    phenoLoop = phenoLine.strip().split(',')
 
-    loopLine = phenoLine.strip().split(',')
-    print(loopLine)
+    nuisanceIndex = {}
+    nuisanceLine = open(nuisanceFile, 'rb').readline()
+    nuisanceLoop = nuisanceLine.strip().split(',')
+
     run = 0
-    for pheno in loopLine:
+    for pheno in phenoLoop:
         # check if it is the subject designator which is not a phenotypic info
         if not pheno == 'subject':
             phenoIndex[pheno] = run
+
+        run += 1
+
+    run = 0
+    for nuisance in nuisanceLoop:
+        # check if it is the subject designator which is not a phenotypic info
+        if not pheno == 'subject':
+            nuisanceIndex[nuisance] = run
 
         run += 1
 
@@ -52,11 +63,11 @@ def Main(searchDir, templateFile, phenoFile, outDir):
         if not pipeline in pipeDict.keys():
             pipeDict[pipeline] = {}
 
-        ageGroupDict = {}
-        ageGroupDict['child'] = []
-        ageGroupDict['adult'] = []
-        childAge = np.array([])
-        adultAge = np.array([])
+        meanFdGroupDict = {}
+        meanFdGroupDict['child'] = []
+        meanFdGroupDict['adult'] = []
+        childFd = np.array([])
+        adultFd = np.array([])
 
         # second level to loop through subjects
         subjectDir = os.path.abspath(os.path.join(searchDir, pipeline))
@@ -70,9 +81,10 @@ def Main(searchDir, templateFile, phenoFile, outDir):
             subBase = findSubBase.group()
 
             # first within subject loop: add phenotypic data
-            if subBase in open(phenoFile).read():
+            if (subBase in open(phenoFile).read() and
+                subject in open(nuisanceFile).read()):
                 # all is good
-                print('found ' + subBase + ' in phenofile. Yeah!')
+                print('found ' + subBase + ' in pheno and nuisance file. Ya!')
                 # loop through the file again
                 for line in open(phenoFile, 'rb'):
                     # search for the correct line
@@ -80,16 +92,22 @@ def Main(searchDir, templateFile, phenoFile, outDir):
                     # the start
                     if line.startswith(subBase):
                         subLine = line.strip().split(',')
+                # then search for the nuisance line
+                for line in open(nuisanceFile, 'rb'):
+                    # get the correct line
+                    if line.startswith(subject):
+                        nuisanceLine = line.strip().split(',')
 
             else:
                 # no phenotypic information, presently we skip these subjects
-                print('didn\'t find ' + subBase + ' in phenofile.'
+                print('didn\'t find ' + subBase + ' in phenofile or nFile.'
                       + ' skipping for now...')
                 continue
 
             # get the phenotypic information
             subAge = subLine[phenoIndex['age']]
             subSex = subLine[phenoIndex['sex']]
+            subMeanFd = nuisanceLine[nuisanceIndex['MeanFD']]
 
             if subSex == 'Female':
                 subSex = 1
@@ -112,19 +130,19 @@ def Main(searchDir, templateFile, phenoFile, outDir):
                 tempScaPath = a[0]
 
             # pull all the shit together
-            storeStuff = (tempScaPath, subAge, subSex)
+            storeStuff = (tempScaPath, subMeanFd, subSex)
             # and then store it depending on age
             if subAge < 17.0:
-                ageGroupDict['child'].append(storeStuff)
-                childAge = np.append(childAge, subAge)
+                meanFdGroupDict['child'].append(storeStuff)
+                childFd = np.append(childFd, subMeanFd)
             else:
-                ageGroupDict['adult'].append(storeStuff)
-                adultAge = np.append(adultAge, subAge)
+                meanFdGroupDict['adult'].append(storeStuff)
+                adultFd = np.append(adultFd, subMeanFd)
 
         # done with the pipeline loop
-        # get the mean ages for both groups
-        childMean = np.mean(childAge)
-        adultMean = np.mean(adultAge)
+        # get the mean FD for both groups
+        childMean = np.mean(childFd)
+        adultMean = np.mean(adultFd)
 
         # prepare the output stuff
         tempOutDir = (outDir + pipeline)
@@ -148,12 +166,12 @@ def Main(searchDir, templateFile, phenoFile, outDir):
         '''
 
         # and now create the output stuff
-        for subStuff in ageGroupDict['child'].values():
-            (tempScaPath, subAge, subSex) = subStuff
-            subAge = subAge - childMean
+        for subStuff in meanFdGroupDict['child'].values():
+            (tempScaPath, subMeanFd, subSex) = subStuff
+            subMeanFd = subMeanFd - childMean
             # add to csv
             csvString = (csvString +
-                           '1, 1, 1, 0, ' + str(subSex) + ', ' + str(subAge)
+                           '1, 1, 1, 0, ' + str(subSex) + ', ' + str(subMeanFd)
                            + '\n')
             # load the sca map for the subject
             f = nib.load(tempScaPath)
@@ -167,12 +185,12 @@ def Main(searchDir, templateFile, phenoFile, outDir):
                                              axis=3)
 
         # now the same for the adults
-        for subStuff in ageGroupDict['adults'].values():
+        for subStuff in meanFdGroupDict['adults'].values():
             (tempScaPath, subAge, subSex) = subStuff
-            subAge = subAge - adultMean
+            subMeanFd = subMeanFd - adultMean
             # add to csv
             csvString = (csvString +
-                           '2, 1, 0, 1, ' + str(subSex) + ', ' + str(subAge)
+                           '2, 1, 0, 1, ' + str(subSex) + ', ' + str(subMeanFd)
                            + '\n')
             # load the sca map for the subject
             f = nib.load(tempScaPath)
@@ -198,6 +216,7 @@ if __name__ == '__main__':
     searchDir = sys.argv[1]
     templateFile = sys.argv[2]
     phenoFile = sys.argv[3]
-    outDir = sys.argv[4]
-    Main(searchDir, templateFile, phenoFile, outDir)
+    nuisanceFile = sys.argv[4]
+    outDir = sys.argv[5]
+    Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir)
     pass
