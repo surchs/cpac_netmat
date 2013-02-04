@@ -66,13 +66,21 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
         if not pipeline in pipeDict.keys():
             pipeDict[pipeline] = {}
             
+        subListString = ''            
         cpacString = 'subId, group, sex, meanFd\n'
+        fourDmatrix = np.array([])
+        fslString = ''
+        fslOneModelString = ''
 
         meanFdGroupDict = {}
         meanFdGroupDict['child'] = []
         meanFdGroupDict['adult'] = []
         childFd = np.array([])
         adultFd = np.array([])
+        childAge = np.array([])
+        adultAge = np.array([])
+        allAge = np.array([])
+        allFd = np.array([])
 
         # second level to loop through subjects
         subjectDir = os.path.abspath(os.path.join(searchDir, pipeline))
@@ -135,25 +143,37 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
                 tempScaPath = a[0]
 
             # pull all the shit together
-            storeStuff = (tempScaPath, subMeanFd, subSex)
+            storeStuff = (subject, tempScaPath, subMeanFd, subAge, subSex)
             # and then store it depending on age
             if subAge < 17.0:
                 meanFdGroupDict['child'].append(storeStuff)
                 childFd = np.append(childFd, subMeanFd)
+                childAge = np.append(childAge, subAge)
+                allAge = np.append(allAge, subAge)
+                allFd = np.append(allFd, subMeanFd)
+                
                 cpacString = (cpacString
                               + subBase + ', ' + 'child' + ', ' + str(subSex)
                               + ', ' + str(subMeanFd) + '\n')
             else:
                 meanFdGroupDict['adult'].append(storeStuff)
                 adultFd = np.append(adultFd, subMeanFd)
+                adultAge = np.append(adultAge, subAge)
+                allAge = np.append(allAge, subAge)
+                allFd = np.append(allFd, subMeanFd)
+                
                 cpacString = (cpacString
                               + subBase + ', ' + 'adult' + ', ' + str(subSex)
                               + ', ' + str(subMeanFd) + '\n')
 
         # done with the pipeline loop
         # get the mean FD for both groups
-        childMean = np.mean(childFd)
-        adultMean = np.mean(adultFd)
+        childAvgMeanFd = np.mean(childFd)
+        adultAvgMeanFd = np.mean(adultFd)
+        childAvgAge = np.mean(childAge)
+        adultAvgAge = np.mean(adultAge)
+        allAvgAge = np.mean(allAge)
+        allAvgMeanFd = np.mean(allFd)
 
         # prepare the output stuff
         tempOutDir = (outDir + pipeline)
@@ -162,10 +182,9 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
 
         fourDFile = (tempOutDir + '/fourDTestfile.nii.gz')
         fslModel = (tempOutDir + '/fslTestfile.csv')
+        oneGroupModel = (tempOutDir + '/oneGroupModel.csv')
         cpacModel = (tempOutDir + '/cpacTestfile.csv')
-
-        fourDmatrix = np.array([])
-        fslString = ''
+        cpacSubList = (tempOutDir + '/cpacSubjectList.txt')
 
         '''
         String columns for csv:
@@ -180,12 +199,18 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
 
         # and now create the output stuff
         for subStuff in meanFdGroupDict['child']:
-            (tempScaPath, subMeanFd, subSex) = subStuff
-            subMeanFd = subMeanFd - childMean
+            (subject, tempScaPath, subMeanFd, subAge, subSex) = subStuff
+            subMeanFd = subMeanFd - childAvgMeanFd
+            dmSubMeanFd = subMeanFd - allAvgMeanFd
+            subAge = subAge - childAvgAge
+            dmSubAge = subAge - allAvgAge
             # add to csv
             fslString = (fslString +
                            '1, 1, 0, ' + str(subSex) + ', 0, ' 
                            + str(subMeanFd) + ', 0\n')
+            fslOneModelString = (fslOneModelString
+                                 + str(subSex) + ', ' + str(dmSubAge) + ', '
+                                 + str(dmSubMeanFd) + '\n')
             # load the sca map for the subject
             f = nib.load(tempScaPath)
             scaMap = f.get_data()
@@ -196,20 +221,28 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
             else:
                 fourDmatrix = np.concatenate((fourDmatrix, scaMap[..., None]),
                                              axis=3)
+            subListString = (subListString + subject + '\n')
 
         # now the same for the adults
         for subStuff in meanFdGroupDict['adult']:
-            (tempScaPath, subMeanFd, subSex) = subStuff
-            subMeanFd = subMeanFd - adultMean
+            (subject, tempScaPath, subMeanFd, subAge, subSex) = subStuff
+            subMeanFd = subMeanFd - adultAvgMeanFd
+            subAge = subAge - adultAvgAge
+            dmSubAge = subAge - allAvgAge
+            dmSubMeanFd = subMeanFd - allAvgMeanFd
             # add to csv
             fslString = (fslString +
                          '2, 0, 1, 0, ' + str(subSex) + ', 0, ' 
                          + str(subMeanFd) + '\n')
+            fslOneModelString = (fslOneModelString
+                                 + str(subSex) + ', ' + str(dmSubAge) + ', '
+                                 + str(dmSubMeanFd) + '\n')            
             # load the sca map for the subject
             f = nib.load(tempScaPath)
             scaMap = f.get_data()
             lastHeader = f.get_header()
             lastAffine = f.get_affine()
+            
 
             # add to childMat
             if fourDmatrix.size == 0:
@@ -217,6 +250,7 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
             else:
                 fourDmatrix = np.concatenate((fourDmatrix, scaMap[..., None]),
                                              axis=3)
+            subListString = (subListString + subject + '\n')
 
         # now print that shit out
         outNifti = nib.Nifti1Image(fourDmatrix, lastAffine, lastHeader)
@@ -225,9 +259,18 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
         f = open(fslModel, 'wb')
         f.writelines(fslString)
         f.close()
+        
+        m = open(oneGroupModel, 'wb')
+        m.writelines(fslOneModelString)
+        m.close()
+        
         c = open(cpacModel, 'wb')
         c.writelines(cpacString)
         c.close()
+        
+        s = open(cpacSubList, 'wb')
+        s.writelines(subListString)
+        s.close()
 
 
 if __name__ == '__main__':
