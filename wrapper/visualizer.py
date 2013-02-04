@@ -262,8 +262,10 @@ def Visualize(study, analysis):
     fig5 = plt.figure(5)
     fig5.suptitle('mean absolute error of the networks')
 
+    '''
     fig6 = plt.figure(6)
     fig6.suptitle('correlation of errors between networks')
+    '''
 
     fig7 = plt.figure(7)
     fig7.suptitle('correlation of absolute errors between networks')
@@ -325,9 +327,11 @@ def Visualize(study, analysis):
         tSP4.plot(tD['true'], tD['true'])
         tSP4.plot(tD['true'], tD['pred'], 'co')
 
+        '''
         tSP6 = fig6.add_subplot(rows, cols, loc, title=network)
         tSP6.hist(tD[network], bins=20)
         # add 1 to the localization variable
+        '''
 
         # make the loop for the network boxplot figures
         # for the boxplots, we have to append the data to a list
@@ -434,7 +438,7 @@ def Visualize(study, analysis):
     fig3.subplots_adjust(hspace=0.5, wspace=0.5)
     fig4.subplots_adjust(hspace=0.5, wspace=0.5)
     fig5.subplots_adjust(hspace=0.5, wspace=0.5)
-    fig6.subplots_adjust(hspace=0.5, wspace=0.5)
+    # fig6.subplots_adjust(hspace=0.5, wspace=0.5)
     fig7.subplots_adjust(hspace=0.5, wspace=0.5)
 
     # now save all that to a pdf
@@ -445,7 +449,7 @@ def Visualize(study, analysis):
     pp.savefig(fig3)
     pp.savefig(fig4)
     pp.savefig(fig5)
-    pp.savefig(fig6)
+    # pp.savefig(fig6)
     pp.savefig(fig7)
     for figure in nitFigList:
         pp.savefig(figure)
