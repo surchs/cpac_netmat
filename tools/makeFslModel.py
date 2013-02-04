@@ -200,10 +200,12 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
         # and now create the output stuff
         for subStuff in meanFdGroupDict['child']:
             (subject, tempScaPath, subMeanFd, subAge, subSex) = subStuff
-            subMeanFd = subMeanFd - childAvgMeanFd
-            dmSubMeanFd = subMeanFd - allAvgMeanFd
+            dmSubAge = subAge - allAvgAge            
+            dmSubMeanFd = subMeanFd - allAvgMeanFd            
+            
+            subMeanFd = subMeanFd - childAvgMeanFd            
             subAge = subAge - childAvgAge
-            dmSubAge = subAge - allAvgAge
+
             # add to csv
             fslString = (fslString +
                            '1, 1, 0, ' + str(subSex) + ', 0, ' 
@@ -226,10 +228,12 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
         # now the same for the adults
         for subStuff in meanFdGroupDict['adult']:
             (subject, tempScaPath, subMeanFd, subAge, subSex) = subStuff
-            subMeanFd = subMeanFd - adultAvgMeanFd
-            subAge = subAge - adultAvgAge
             dmSubAge = subAge - allAvgAge
             dmSubMeanFd = subMeanFd - allAvgMeanFd
+            
+            subMeanFd = subMeanFd - adultAvgMeanFd
+            subAge = subAge - adultAvgAge
+                    
             # add to csv
             fslString = (fslString +
                          '2, 0, 1, 0, ' + str(subSex) + ', 0, ' 
