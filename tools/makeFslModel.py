@@ -38,6 +38,9 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
     nuisanceIndex = {}
     nuisanceLine = open(nuisanceFile, 'rb').readline()
     nuisanceLoop = nuisanceLine.strip().split(',')
+    
+    lastHeader = None
+    lastAffine = None
 
     run = 0
     for pheno in phenoLoop:
@@ -62,6 +65,8 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
         # generate pipeline dict entry
         if not pipeline in pipeDict.keys():
             pipeDict[pipeline] = {}
+            
+        cpacString = 'subId, group, sex, meanFd\n'
 
         meanFdGroupDict = {}
         meanFdGroupDict['child'] = []
@@ -105,14 +110,14 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
                 continue
 
             # get the phenotypic information
-            subAge = subLine[phenoIndex['age']]
+            subAge = float(subLine[phenoIndex['age']])
             subSex = subLine[phenoIndex['sex']]
-            subMeanFd = nuisanceLine[nuisanceIndex['MeanFD']]
+            subMeanFd = float(nuisanceLine[nuisanceIndex['MeanFD']])
 
             if subSex == 'Female':
                 subSex = 1
             elif subSex == 'Male':
-                subSex = 0
+                subSex = -1
             else:
                 print('Your subject is gender neutral you dumb bitch. Aborting')
                 continue
@@ -135,9 +140,15 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
             if subAge < 17.0:
                 meanFdGroupDict['child'].append(storeStuff)
                 childFd = np.append(childFd, subMeanFd)
+                cpacString = (cpacString
+                              + subBase + ', ' + 'child' + ', ' + str(subSex)
+                              + ', ' + str(subMeanFd) + '\n')
             else:
                 meanFdGroupDict['adult'].append(storeStuff)
                 adultFd = np.append(adultFd, subMeanFd)
+                cpacString = (cpacString
+                              + subBase + ', ' + 'adult' + ', ' + str(subSex)
+                              + ', ' + str(subMeanFd) + '\n')
 
         # done with the pipeline loop
         # get the mean FD for both groups
@@ -150,10 +161,12 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
             os.makedirs(tempOutDir)
 
         fourDFile = (tempOutDir + '/fourDTestfile.nii.gz')
-        modelFile = (tempOutDir + '/modelTestfile.csv')
+        fslModel = (tempOutDir + '/fslTestfile.csv')
+        cpacModel = (tempOutDir + '/cpacTestfile.csv')
 
         fourDmatrix = np.array([])
-        csvString = ''
+        fslString = ''
+
         '''
         String columns for csv:
             1) Group: 1 for kids, 2 for adults
@@ -166,13 +179,13 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
         '''
 
         # and now create the output stuff
-        for subStuff in meanFdGroupDict['child'].values():
+        for subStuff in meanFdGroupDict['child']:
             (tempScaPath, subMeanFd, subSex) = subStuff
             subMeanFd = subMeanFd - childMean
             # add to csv
-            csvString = (csvString +
-                           '1, 1, 1, 0, ' + str(subSex) + ', ' + str(subMeanFd)
-                           + '\n')
+            fslString = (fslString +
+                           '1, 1, 0, ' + str(subSex) + ', 0, ' 
+                           + str(subMeanFd) + ', 0\n')
             # load the sca map for the subject
             f = nib.load(tempScaPath)
             scaMap = f.get_data()
@@ -185,16 +198,18 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
                                              axis=3)
 
         # now the same for the adults
-        for subStuff in meanFdGroupDict['adults'].values():
-            (tempScaPath, subAge, subSex) = subStuff
+        for subStuff in meanFdGroupDict['adult']:
+            (tempScaPath, subMeanFd, subSex) = subStuff
             subMeanFd = subMeanFd - adultMean
             # add to csv
-            csvString = (csvString +
-                           '2, 1, 0, 1, ' + str(subSex) + ', ' + str(subMeanFd)
-                           + '\n')
+            fslString = (fslString +
+                         '2, 0, 1, 0, ' + str(subSex) + ', 0, ' 
+                         + str(subMeanFd) + '\n')
             # load the sca map for the subject
             f = nib.load(tempScaPath)
             scaMap = f.get_data()
+            lastHeader = f.get_header()
+            lastAffine = f.get_affine()
 
             # add to childMat
             if fourDmatrix.size == 0:
@@ -204,12 +219,15 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
                                              axis=3)
 
         # now print that shit out
-        outNifti = nib.Nifti1Image(fourDmatrix, f.get_affine(), f.get_header())
+        outNifti = nib.Nifti1Image(fourDmatrix, lastAffine, lastHeader)
         nib.nifti1.save(outNifti, fourDFile)
         # and the csv
-        f = open(modelFile, 'wb')
-        f.writelines(csvString)
+        f = open(fslModel, 'wb')
+        f.writelines(fslString)
         f.close()
+        c = open(cpacModel, 'wb')
+        c.writelines(cpacString)
+        c.close()
 
 
 if __name__ == '__main__':
