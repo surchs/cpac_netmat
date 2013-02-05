@@ -69,9 +69,8 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
         subListString = ''
         cpacString = 'subId, group, sex, meanFd\n'
         fourDmatrix = np.array([])
-        fslString = ''
-        fslOneModelString = ''
-        fslSquareModel = ''
+        twoGroupString = ''
+        oneGroupString = ''
 
         meanFdGroupDict = {}
         meanFdGroupDict['child'] = []
@@ -114,7 +113,7 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
                 continue
 
             # get the phenotypic information
-            subAge = float(subLine[phenoIndex['age']])
+            subAge = np.sqrt(float(subLine[phenoIndex['age']]))
             subSex = subLine[phenoIndex['sex']]
             subMeanFd = float(nuisanceLine[nuisanceIndex['MeanFD']])
 
@@ -171,11 +170,10 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
             os.makedirs(tempOutDir)
 
         fourDFile = (tempOutDir + '/fourDTestfile.nii.gz')
-        fslModel = (tempOutDir + '/fslTestfile.csv')
+        twoGroupModel = (tempOutDir + '/twoGroupModel.csv')
         oneGroupModel = (tempOutDir + '/oneGroupModel.csv')
-        quadraticModel = (tempOutDir + '/quadraticOneGroupModel.csv')
         cpacModel = (tempOutDir + '/cpacTestfile.csv')
-        cpacSubList = (tempOutDir + '/cpacSubjectList.txt')
+        subjectList = (tempOutDir + '/subjectList.txt')
 
         '''
         String columns for csv:
@@ -194,19 +192,15 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
             # demean individual covariate by full group mean
             dmSubAge = subAge - avgAge
             dmSubMeanFd = subMeanFd - avgMeanFd
-            sqrtSubAge = np.sqrt(dmSubAge)
 
             # add to csv
-            fslString = (fslString +
-                           '1, 1, 0, ' + str(subSex) + ', 0, '
-                           + str(subMeanFd) + ', 0\n')
-            fslOneModelString = (fslOneModelString
-                                 + str(subSex) + ', ' + str(dmSubAge) + ', '
-                                 + str(dmSubMeanFd) + '\n')
-
-            fslSquareModel = (fslSquareModel
-                              + str(sqrtSubAge) + ', ' + str(subSex) + ', '
+            twoGroupString = (twoGroupString 
+                              +'1, 1, 0, ' + str(subSex) + ', 0, '
+                              + str(subMeanFd) + ', 0\n')
+            oneGroupString = (oneGroupString
+                              + str(subSex) + ', ' + str(dmSubAge) + ', '
                               + str(dmSubMeanFd) + '\n')
+
             # load the sca map for the subject
             f = nib.load(tempScaPath)
             scaMap = f.get_data()
@@ -225,18 +219,15 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
             # demean individual covariate by full group mean
             dmSubAge = subAge - avgAge
             dmSubMeanFd = subMeanFd - avgMeanFd
-            sqrtSubAge = np.sqrt(dmSubAge)
 
             # add to csv
-            fslString = (fslString +
-                         '2, 0, 1, 0, ' + str(subSex) + ', 0, '
-                         + str(subMeanFd) + '\n')
-            fslOneModelString = (fslOneModelString
-                                 + str(subSex) + ', ' + str(dmSubAge) + ', '
-                                 + str(dmSubMeanFd) + '\n')
-            fslSquareModel = (fslSquareModel
-                              + str(sqrtSubAge) + ', ' + str(subSex) + ', '
+            twoGroupString = (twoGroupString 
+                              + '2, 0, 1, 0, ' + str(subSex) + ', 0, '
+                              + str(subMeanFd) + '\n')
+            oneGroupString = (oneGroupString
+                              + str(subSex) + ', ' + str(dmSubAge) + ', '
                               + str(dmSubMeanFd) + '\n')
+
             # load the sca map for the subject
             f = nib.load(tempScaPath)
             scaMap = f.get_data()
@@ -255,23 +246,19 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
         outNifti = nib.Nifti1Image(fourDmatrix, lastAffine, lastHeader)
         nib.nifti1.save(outNifti, fourDFile)
         # and the csv
-        f = open(fslModel, 'wb')
-        f.writelines(fslString)
-        f.close()
+        t = open(twoGroupModel, 'wb')
+        t.writelines(twoGroupString)
+        t.close()
 
-        m = open(oneGroupModel, 'wb')
-        m.writelines(fslOneModelString)
-        m.close()
-
-        q = open(quadraticModel, 'wb')
-        q.writelines(fslSquareModel)
-        q.close()
+        o = open(oneGroupModel, 'wb')
+        o.writelines(oneGroupString)
+        o.close()
 
         c = open(cpacModel, 'wb')
         c.writelines(cpacString)
         c.close()
 
-        s = open(cpacSubList, 'wb')
+        s = open(subjectList, 'wb')
         s.writelines(subListString)
         s.close()
 
