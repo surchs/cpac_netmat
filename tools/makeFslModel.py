@@ -16,7 +16,7 @@ import numpy as np
 import nibabel as nib
 
 
-def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
+def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
     '''
     method to load the preprocessed stuff and stack it while at the same time
     saving the phenotypic information
@@ -66,18 +66,38 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
         if not pipeline in pipeDict.keys():
             pipeDict[pipeline] = {}
 
-        subListString = ''
         cpacString = 'subId, group, sex, meanFd\n'
-        fourDmatrix = np.array([])
-        twoGroupString = ''
-        oneGroupString = ''
+        # fourDmatrix = np.array([])
+        
+        wStringDW = {}
+        wStringDW['child'] = ''
+        wStringDW['adult'] = ''
+        
+        bStringDW = ''
+        bStringDB = ''
 
+        subjectList = {}
+        subjectList['child'] = ''
+        subjectList['adult'] = ''
+        subjectList['between'] = ''
+        # store children and adults here
+        groupDict = {}
+        groupDict['child'] = []
+        groupDict['adult'] = []
+        
+        # store mean fd and age here for within group demeaning
         meanFdGroupDict = {}
-        meanFdGroupDict['child'] = []
-        meanFdGroupDict['adult'] = []
+        meanFdGroupDict['child'] = np.array([])
+        meanFdGroupDict['adult'] = np.array([])
+        
+        ageGroupDict = {}
+        ageGroupDict['child'] = np.array([])
+        ageGroupDict['adult'] = np.array([])
 
-        allAge = np.array([])
-        allFd = np.array([])
+        # store mean fd and age here for between group demeaning
+        dataAge = np.array([])
+        betweenAge = np.array([])
+        betweenFd = np.array([])
 
         # second level to loop through subjects
         subjectDir = os.path.abspath(os.path.join(searchDir, pipeline))
@@ -92,7 +112,7 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
             if (subBase in open(phenoFile).read() and
                 subject in open(nuisanceFile).read()):
                 # all is good
-                print('found ' + subBase + ' in pheno and nuisance file. Ya!')
+                # print('found ' + subBase + ' in pheno and nuisance file. Ya!')
                 # loop through the file again
                 for line in open(phenoFile, 'rb'):
                     # search for the correct line
@@ -113,9 +133,11 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
                 continue
 
             # get the phenotypic information
-            subAge = np.sqrt(float(subLine[phenoIndex['age']]))
+            subAge = float(subLine[phenoIndex['age']])
+            subUseAge = subAge
             subSex = subLine[phenoIndex['sex']]
             subMeanFd = float(nuisanceLine[nuisanceIndex['MeanFD']])
+            dataAge = np.append(dataAge, subAge)
 
             if subSex == 'Female':
                 subSex = 1
@@ -138,97 +160,143 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
                 tempScaPath = a[0]
 
             # pull all the shit together
-            storeStuff = (subject, tempScaPath, subMeanFd, subAge, subSex)
+            storeStuff = (subject, tempScaPath, subMeanFd, subUseAge, subSex)
             # and then store it depending on age
             if subAge < 15.0:
-                meanFdGroupDict['child'].append(storeStuff)
-                allAge = np.append(allAge, subAge)
-                allFd = np.append(allFd, subMeanFd)
+                print(subBase + ' is child with age ' + str(subAge))
+                groupDict['child'].append(storeStuff)
+                meanFdGroupDict['child'] = np.append(meanFdGroupDict['child'],
+                                                     subMeanFd)
+                ageGroupDict['child'] = np.append(ageGroupDict['child'], 
+                                                  subUseAge)
+                betweenAge = np.append(betweenAge, subUseAge)
+                betweenFd = np.append(betweenFd, subMeanFd)
 
                 cpacString = (cpacString
                               + subBase + ', ' + 'child' + ', ' + str(subSex)
                               + ', ' + str(subMeanFd) + '\n')
-            elif subAge > 24.0:
-                meanFdGroupDict['adult'].append(storeStuff)
-                allAge = np.append(allAge, subAge)
-                allFd = np.append(allFd, subMeanFd)
+            elif subAge >= 15.0:
+                print(subBase + ' is adult with age ' + str(subAge))
+                groupDict['adult'].append(storeStuff)
+                meanFdGroupDict['adult'] = np.append(meanFdGroupDict['adult'],
+                                                     subMeanFd)
+                ageGroupDict['adult'] = np.append(ageGroupDict['adult'], 
+                                                  subUseAge)
+                betweenAge = np.append(betweenAge, subUseAge)
+                betweenFd = np.append(betweenFd, subMeanFd)
 
                 cpacString = (cpacString
                               + subBase + ', ' + 'adult' + ', ' + str(subSex)
                               + ', ' + str(subMeanFd) + '\n')
             else:
+                print(subBase + ' doesn\'t fit with age ' + str(subAge))
                 continue
 
         # done with the pipeline loop
         # get the mean FD for both groups
-        avgAge = np.mean(allAge)
-        avgMeanFd = np.mean(allFd)
+        print('age: from ' + str(dataAge.min()) + ' to ' + str(dataAge.max())
+              + ' with ' + str(len(dataAge)) + ' cases')
+        avgBetweenAge = np.mean(betweenAge)
+        avgBetweenFd = np.mean(betweenFd)
 
         # prepare the output stuff
         tempOutDir = (outDir + pipeline)
         if not os.path.isdir(tempOutDir):
             os.makedirs(tempOutDir)
 
-        fourDFile = (tempOutDir + '/fourDTestfile.nii.gz')
-        twoGroupModel = (tempOutDir + '/twoGroupModel.csv')
-        oneGroupModel = (tempOutDir + '/oneGroupModel.csv')
-        cpacModel = (tempOutDir + '/cpacTestfile.csv')
-        subjectList = (tempOutDir + '/subjectList.txt')
-
         '''
-        String columns for csv:
+        String columns for between group:
             1) Group: 1 for kids, 2 for adults
-            2) Mean: 1 for all
-            3) kidsfactor: 1 for kids, 0 for adults
-            4) adultsfactor: 0 for kids, 1 for adults
-            5) sexfactor: 1 for women, 0 for men
-            6) agefactor: demeaned age (won't need this in my analysis though
+            2) kidsgroup: 1 for kids, 0 for adults
+            3) adultsgroup: 0 for kids, 1 for adults
+            4) kids-sex: yes
+            5) adults-sex: yes
+            6) kids-meanFd: demeaned
+            7) adults-meanFd: demeaned
 
+        String columns for within group:
+            1) Group: always 1
+            2) Mean: always 1
+            3) sex: yes
+            4) age: demeaned
+            5) meanFd: demeaned
         '''
 
         # and now create the output stuff
-        for subStuff in meanFdGroupDict['child']:
-            (subject, tempScaPath, subMeanFd, subAge, subSex) = subStuff
-            # demean individual covariate by full group mean
-            dmSubAge = subAge - avgAge
-            dmSubMeanFd = subMeanFd - avgMeanFd
+        for subStuff in groupDict['child']:
+            (subject, tempScaPath, subMeanFd, subUseAge, subSex) = subStuff
+            # demean individual covariate by between group average
+            bwSubAge = subUseAge - avgBetweenAge
+            bwSubMeanFd = subMeanFd - avgBetweenFd
+            
+            # demean individual covariate by within group average
+            wiSubAge = subUseAge - np.average(ageGroupDict['child'])
+            wiSubMeanFd = subMeanFd - np.average(meanFdGroupDict['child'])
 
             # add to csv
-            twoGroupString = (twoGroupString 
-                              +'1, 1, 0, ' + str(subSex) + ', 0, '
-                              + str(subMeanFd) + ', 0\n')
-            oneGroupString = (oneGroupString
-                              + str(subSex) + ', ' + str(dmSubAge) + ', '
-                              + str(dmSubMeanFd) + '\n')
+            wStringDW['child'] = (wStringDW['child']
+                                  +'1,1,' + str(subSex) + ',' 
+                                  + str(wiSubAge) + ',' + str(wiSubMeanFd) 
+                                  + '\n')
+            
+            bStringDW = (bStringDW
+                         + '1,1,0,' + str(subSex) + ',0,' + str(wiSubMeanFd)
+                         + '0\n')
+            
+            bStringDB = (bStringDB
+                         + '1,1,0,' + str(subSex) + ',0,' + str(bwSubMeanFd)
+                         + '0\n')
+            
+            subjectList['child'] = (subjectList['child'] + subject + '\n')
+            
+            subjectList['between'] = (subjectList['between'] + subject + '\n')
+            
 
             # load the sca map for the subject
+            '''
             f = nib.load(tempScaPath)
             scaMap = f.get_data()
-
+            
+            
             # add to childMat
             if fourDmatrix.size == 0:
                 fourDmatrix = scaMap[..., None]
             else:
                 fourDmatrix = np.concatenate((fourDmatrix, scaMap[..., None]),
                                              axis=3)
-            subListString = (subListString + subject + '\n')
-
+            '''
+            
         # now the same for the adults
-        for subStuff in meanFdGroupDict['adult']:
-            (subject, tempScaPath, subMeanFd, subAge, subSex) = subStuff
-            # demean individual covariate by full group mean
-            dmSubAge = subAge - avgAge
-            dmSubMeanFd = subMeanFd - avgMeanFd
+        for subStuff in groupDict['adult']:
+            (subject, tempScaPath, subMeanFd, subUseAge, subSex) = subStuff
+            # demean individual covariate by between group average
+            bwSubAge = subUseAge - avgBetweenAge
+            bwSubMeanFd = subMeanFd - avgBetweenFd
+            
+            # demean individual covariate by within group average
+            wiSubAge = subUseAge - np.average(ageGroupDict['adult'])
+            wiSubMeanFd = subMeanFd - np.average(meanFdGroupDict['adult'])
 
             # add to csv
-            twoGroupString = (twoGroupString 
-                              + '2, 0, 1, 0, ' + str(subSex) + ', 0, '
-                              + str(subMeanFd) + '\n')
-            oneGroupString = (oneGroupString
-                              + str(subSex) + ', ' + str(dmSubAge) + ', '
-                              + str(dmSubMeanFd) + '\n')
+            wStringDW['adult'] = (wStringDW['adult']
+                                  +'1,1,' + str(subSex) + ',' 
+                                  + str(wiSubAge) + ',' + str(wiSubMeanFd) 
+                                  + '\n')
+            
+            bStringDW = (bStringDW
+                         + '2,0,1,0,' + str(subSex) + ',0,' + str(wiSubMeanFd)
+                         + '\n')
+            
+            bStringDB = (bStringDB
+                         + '2,0,1,0' + str(subSex) + ',0,' + str(bwSubMeanFd)
+                         + '\n')
+            
+            subjectList['adult'] = (subjectList['adult'] + subject + '\n')
+            
+            subjectList['between'] = (subjectList['between'] + subject + '\n')
 
             # load the sca map for the subject
+            '''
             f = nib.load(tempScaPath)
             scaMap = f.get_data()
             lastHeader = f.get_header()
@@ -240,27 +308,57 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir):
             else:
                 fourDmatrix = np.concatenate((fourDmatrix, scaMap[..., None]),
                                              axis=3)
-            subListString = (subListString + subject + '\n')
-
+            '''
+            
         # now print that shit out
+        '''
         outNifti = nib.Nifti1Image(fourDmatrix, lastAffine, lastHeader)
         nib.nifti1.save(outNifti, fourDFile)
-        # and the csv
-        t = open(twoGroupModel, 'wb')
-        t.writelines(twoGroupString)
-        t.close()
+        '''
 
-        o = open(oneGroupModel, 'wb')
-        o.writelines(oneGroupString)
-        o.close()
+        bModelDW = (tempOutDir + '/' + mName + '_betweenModelDemeanWithin.csv')
+        bModelDB = (tempOutDir + '/' + mName + '_betweenModelDemeanBetween.csv')
+        wModelC = (tempOutDir + '/' + mName + '_withinModelChildren.csv')
+        wModelA = (tempOutDir + '/' + mName + '_withinModelAdults.csv')
+        bSubList = (tempOutDir + '/' + mName + '_subjectListBetween.txt')
+        wSubListC = (tempOutDir + '/' + mName 
+                     + '_subjectListWithinChildren.txt')
+        wSubListA = (tempOutDir + '/' + mName + '_subjectListWithinAdults.txt')
+        
+        cpacModel = (tempOutDir + '/' + mName + '_cpacModel.csv')
+        
+        # and the csv
+        bmdw = open(bModelDW, 'wb')
+        bmdw.writelines(bStringDW)
+        bmdw.close()
+        
+        bmdb = open(bModelDB, 'wb')
+        bmdb.writelines(bStringDB)
+        bmdb.close()
+        
+        wmc = open(wModelC, 'wb')
+        wmc.writelines(wStringDW['child'])
+        wmc.close()
+        
+        wma = open(wModelA, 'wb')
+        wma.writelines(wStringDW['adult'])
+        wma.close()
+        
+        bs = open(bSubList, 'wb')
+        bs.writelines(subjectList['between'])
+        bs.close()
+        
+        wsc = open(wSubListC, 'wb')
+        wsc.writelines(subjectList['child'])
+        wsc.close()
+        
+        wsa = open(wSubListA, 'wb')
+        wsa.writelines(subjectList['adult'])
+        wsa.close()
 
         c = open(cpacModel, 'wb')
         c.writelines(cpacString)
         c.close()
-
-        s = open(subjectList, 'wb')
-        s.writelines(subListString)
-        s.close()
 
 
 if __name__ == '__main__':
@@ -269,5 +367,9 @@ if __name__ == '__main__':
     phenoFile = sys.argv[3]
     nuisanceFile = sys.argv[4]
     outDir = sys.argv[5]
-    Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir)
+    if len(sys.argv) > 6:
+        mName = sys.argv[6]
+    else:
+        mName = os.path.basename(os.path.abspath(outDir))
+    Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName)
     pass
