@@ -64,6 +64,7 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
         
         # keep the seed regions
         seeds = {}
+        masks = {}
         print('in pipeline ' + pipeline + ' now!')
         
         # second level to loop through subjects
@@ -78,6 +79,16 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
                 print('found sub3211_session_1')
             
             subjectDir = os.path.join(pipeDir, subject)
+            # find the functional MNI mask
+            mniMaskSearch = (subjectDir + '/*.nii.gz')
+            mask = glob.glob(mniMaskSearch)
+            if len(mask) != 1:
+                print('didn\'t find a functional mask for ' + subject)
+                continue
+            else:
+                mniMaskFile = mask[0]
+                masks[subject] = mniMaskFile
+            
             # now find all of the ROIs
             searchString = (subjectDir + '/*/z_score/*.nii.gz')
             a = glob.glob(searchString)
@@ -115,6 +126,7 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
             # create a file list that gets populated in the same order as 
             # the subject file
             fileList = []
+            maskList = []
             print('Running seed ' + seed + ' in pipeline ' + pipeline)
             seedDict = seeds[seed]
             # print('sub3211_session_1 : ' + seedDict.get('sub3211_session_1'))
@@ -123,18 +135,22 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
                 # strip newline from subject
                 subject = subject.strip()
                 # check if subject is in dict for current seed
-                if not subject in seeds[seed].keys():
-                    print('subject ' + subject + ' is not in seed ' + seed
-                          + ' for pipeline ' + pipeline)
+                if (not subject in seeds[seed].keys()
+                    or not subject in masks.keys()):
+                    print('subject ' + subject + ' is not in seed or mask ' 
+                          + seed + ' for pipeline ' + pipeline)
                     continue
                 subjectFile = seedDict[subject]
+                subjectMask = masks[subject]
                 # append subject filepath to the list
                 fileList.append(subjectFile)
+                # append subject funcmask to list
+                maskList.append(subjectMask)
             
             if not pipeline in groupanalysis.keys():
                 groupanalysis[pipeline] = {}
             
-            groupanalysis[pipeline][seed] = fileList
+            groupanalysis[pipeline][seed] = (fileList, maskList)
     
     # done with the looping, now we can run
     # now run the different pipelines
@@ -143,7 +159,7 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
         
         for seed in pipeDict.keys():
             
-            fileList = pipeDict[seed]
+            (fileList, maskList) = pipeDict[seed]
             
 #             groupOutDir = os.path.join(OutDir, pipeline)
             groupOutDir = os.path.join(OutDir, seed)
@@ -172,27 +188,26 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
             
             # smoothing
             smoothing = pe.MapNode(interface=fsl.MultiImageMaths(), 
-                                   name='smoothing', iterfield=['in_file'])
+                                   name='smoothing', iterfield=['in_file', 
+                                                                'operand_files'])
             # sigma for gaussian
             sigma = np.round(fwhm/2.3548, prec)
             opString = ('-kernel gauss ' + str(sigma) + ' -fmean -mas %s')
-            grp_wkf.smoothing.inputs.inputspec.in_file = fileList
-            grp_wkf.smoothing.inputs.inputspec.op_string = opString
-            grp_wkf.smoothing.inputs.inputspec.operand_files = 
+            smoothing.inputs.inputspec.in_file = fileList
+            smoothing.inputs.inputspec.op_string = opString
+            smoothing.inputs.inputspec.operand_files = maskList
             
-            grp_wkf.connect(inputnode_fwhm, ('fwhm', set_gauss),
-                            sca_seed_Z_smooth, 'op_string')
-            grp_wkf.connect(node, out_file,
-                            sca_seed_Z_smooth, 'operand_files')
             grp_wkf.inputs.inputspec.mat_file = designFile
             grp_wkf.inputs.inputspec.con_file = contrastFile
             grp_wkf.inputs.inputspec.grp_file = groupFile
             
-            grp_wkf.inputs.inputspec.zmap_files = fileList
+            # grp_wkf.inputs.inputspec.zmap_files = fileList
             grp_wkf.inputs.inputspec.z_threshold = 2.3
             grp_wkf.inputs.inputspec.p_threshold = 0.05
             grp_wkf.inputs.inputspec.parameters = (fsl, mni)
             
+            wf.connect(smoothing, 'outputspec.out_file',
+                       grp_wkf, 'inputspec.zmap_files')
             wf.connect(grp_wkf, 'outputspec.cluster_threshold',
                        ds, 'thresholded')
             wf.connect(grp_wkf, 'outputspec.rendered_image',
