@@ -162,7 +162,7 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
             # pull all the shit together
             storeStuff = (subject, tempScaPath, subMeanFd, subUseAge, subSex)
             # and then store it depending on age
-            if subAge < 15.0:
+            if subAge < 13.0:
                 print(subBase + ' is child with age ' + str(subAge))
                 groupDict['child'].append(storeStuff)
                 meanFdGroupDict['child'] = np.append(meanFdGroupDict['child'],
@@ -175,7 +175,7 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
                 cpacString = (cpacString
                               + subBase + ', ' + 'child' + ', ' + str(subSex)
                               + ', ' + str(subMeanFd) + '\n')
-            elif subAge >= 15.0:
+            elif subAge >= 17.0:
                 print(subBase + ' is adult with age ' + str(subAge))
                 groupDict['adult'].append(storeStuff)
                 meanFdGroupDict['adult'] = np.append(meanFdGroupDict['adult'],
@@ -200,7 +200,8 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
         avgBetweenFd = np.mean(betweenFd)
 
         # prepare the output stuff
-        tempOutDir = (outDir + pipeline)
+        # tempOutDir = (outDir + pipeline)
+        tempOutDir = outDir
         if not os.path.isdir(tempOutDir):
             os.makedirs(tempOutDir)
 
@@ -241,11 +242,11 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
             
             bStringDW = (bStringDW
                          + '1,1,0,' + str(subSex) + ',0,' + str(wiSubMeanFd)
-                         + '0\n')
+                         + ',0\n')
             
             bStringDB = (bStringDB
                          + '1,1,0,' + str(subSex) + ',0,' + str(bwSubMeanFd)
-                         + '0\n')
+                         + ',0\n')
             
             subjectList['child'] = (subjectList['child'] + subject + '\n')
             
@@ -288,7 +289,7 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
                          + '\n')
             
             bStringDB = (bStringDB
-                         + '2,0,1,0' + str(subSex) + ',0,' + str(bwSubMeanFd)
+                         + '2,0,1,0,' + str(subSex) + ',0,' + str(bwSubMeanFd)
                          + '\n')
             
             subjectList['adult'] = (subjectList['adult'] + subject + '\n')
@@ -362,14 +363,25 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
 
 
 if __name__ == '__main__':
-    searchDir = sys.argv[1]
-    templateFile = sys.argv[2]
-    phenoFile = sys.argv[3]
-    nuisanceFile = sys.argv[4]
-    outDir = sys.argv[5]
-    if len(sys.argv) > 6:
-        mName = sys.argv[6]
+    if len(sys.argv) < 6:
+        print('\nYou have specified too few commands!\n')
+        print('This is the intended usage:\n'
+              + ' 1) search directory where to look for the subject files\n'
+              + ' 2) template file that contains the paths to the files\n'
+              + ' 3) pheno file that contains the phenotypic information\n'
+              + ' 4) nuisance file that contains the nuisance information\n'
+              + ' 5) output director where to save the generated files\n'
+              + ' 6) -optional: name prefix for the generated files.\n'
+              + '    If none is specified, the output directory name is used')
     else:
-        mName = os.path.basename(os.path.abspath(outDir))
-    Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName)
+        searchDir = sys.argv[1]
+        templateFile = sys.argv[2]
+        phenoFile = sys.argv[3]
+        nuisanceFile = sys.argv[4]
+        outDir = sys.argv[5]
+        if len(sys.argv) > 6:
+            mName = sys.argv[6]
+        else:
+            mName = os.path.basename(os.path.abspath(outDir))
+        Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName)
     pass
