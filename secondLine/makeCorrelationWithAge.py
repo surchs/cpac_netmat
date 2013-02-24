@@ -103,21 +103,13 @@ def computeFDR(pValueVector, alpha):
     # Check where p-value <= test
     testIndex = np.where(reverseP <= test)
     if testIndex[0].size == 0:
-        raise Exception('None of you p values pass FDR correction')
-    # Get the first p value that passes the criterion
-    pFDR = reverseP[np.min(testIndex)]
+        print('None of you p values pass FDR correction')
+        pFDR = 0
+    else:
+        # Get the first p value that passes the criterion
+        pFDR = reverseP[np.min(testIndex)]
     
     return pFDR
-    
-    
-    
-    
-    # now return the p vector
-    pOutVector = np.ones_like(pValueVector)
-    pOutVector[:cutK] = pValueVector[:cutK]
-    
-    print(pOutVector)
-    return pOutVector
     
 
 def saveOutput(outputFilePath, outputMatrix):
