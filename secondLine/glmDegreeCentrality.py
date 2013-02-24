@@ -88,8 +88,9 @@ def Main():
         ageStack = stackAges(ageStack, phenoAge)
         
     # Now run a glm for each ROI/Voxel
-    for roiIndex in np.arange(numDcROIs)
-
-
+    for roiIndex in np.arange(numDcROIs):
+        roiVector = degreeCentralityStack[..., roiIndex]
+        runGLM(roiVector, ageStack)
+    
 if __name__ == '__main__':
     pass
