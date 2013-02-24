@@ -77,32 +77,47 @@ def correlateConnectomeWithAge(connectomeStack, ageStack):
     return correlationMatrix, pValueMatrix
 
 
-def computeFDR(pValueMatrix, alpha):
-    # This returns a thresholded binary matrix for pValues that pass FDR
-    mask = np.zeros_like(pValueMatrix, dtype=int)
+def prepareFDR(pValueMatrix):
+    # This returns a vector of p-values
     aidMask = np.ones_like(pValueMatrix)
     lowerTriangle = np.tril(aidMask, -1)
-    numberOfIndependentTests = np.sum(lowerTriangle)
     independentPValues = pValueMatrix[lowerTriangle==1]
     
-    orderPValues = np.argsort(independentPValues)
-    # Loop through the pValues
-    cutK = 0
-    for k, pIndex in enumerate(orderPValues):
-        test = ((k + 1) / numberOfIndependentTests) * alpha
-        pOfK = independentPValues[pIndex]
-        if pOfK < test:
-            cutK = k + 1
-        else:
-            continue
+    return independentPValues
+
+        
+def computeFDR(pValueVector, alpha):
+    # This returns a new thresholded p value
+    # Sort the p values by size, beginning with the smallest
+    sortedP = np.sort(pValueVector)
+    # Reverse sort the p-values, so the first one is the biggest
+    reverseP = sortedP[::-1]
+    # Get the number of p-values
+    numP = float(len(reverseP))
+    # Create a vector designating the position of the reverse sorted p-values
+    # in the sorted p vector (e.g. the first reverse sorted p-value will have
+    # the index numP because it would be the last entry in the sorted vector)
+    indexP = np.arange(numP, 0, -1)
+    # Create test vector of (index of p value / number of p values) * alpha
+    test = indexP/numP * alpha
+    # Check where p-value <= test
+    testIndex = np.where(reverseP <= test)
+    if testIndex[0].size == 0:
+        raise Exception('None of you p values pass FDR correction')
+    # Get the first p value that passes the criterion
+    pFDR = reverseP[np.min(testIndex)]
     
-    # Now pick all pValueIndices smaller than cutK and set the corresponding
-    # values in the mask to 1
-    mask[lowerTriangle==1][orderPValues[:cutK]] = 1
-    print(str(np.sum(mask)) + ' out of ' + str(numberOfIndependentTests) 
-          + ' connections passed FDR')
+    return pFDR
     
-    return mask
+    
+    
+    
+    # now return the p vector
+    pOutVector = np.ones_like(pValueVector)
+    pOutVector[:cutK] = pValueVector[:cutK]
+    
+    print(pOutVector)
+    return pOutVector
     
 
 def saveOutput(outputFilePath, outputMatrix):
@@ -121,7 +136,7 @@ def Main():
     connectomeSuffix = '_connectome.txt'
     
     # Define parameters
-    alpha = 0.05
+    alpha = 0.9
     
     # Define the outputs
     pathToCorrelationMatrix = '/home2/surchs/secondLine/correlation/correlation_matrix.txt'
