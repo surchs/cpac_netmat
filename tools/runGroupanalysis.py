@@ -16,6 +16,7 @@ import numpy as np
 import nipype.pipeline.engine as pe
 import nipype.interfaces.utility as util
 import nipype.interfaces.io as nio
+import nipype.interfaces.fsl as nipFsl
 
 
 def getModelFile(modelDir, fileEnding):
@@ -25,9 +26,11 @@ def getModelFile(modelDir, fileEnding):
     searchString = (modelDir + '*' + fileEnding)
     a = glob.glob(searchString)
     if len(a) == 0:
+        raise Exception('\n\nHaven\'t found a file for ' 
+                        + fileEnding + '!!!!!!\n\n')
         modelFile = False
     elif len(a) > 1:
-        print('more than one ' + fileEnding + ' file in ' + modelDir)
+        raise Exception('more than one ' + fileEnding + ' file in ' + modelDir)
         modelFile = a[0]
     else:
         modelFile = a[0]
@@ -45,6 +48,7 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
     designFile = getModelFile(modelDir, 'mat')
     groupFile = getModelFile(modelDir, 'grp')
     subjectList = getModelFile(modelDir, 'txt')
+    print('fsl ' + str(type(nipFsl)))
     print('I got this: ' + subjectList)
     time.sleep(4)
     mni = 'MNI152'
@@ -160,7 +164,8 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
         for seed in pipeDict.keys():
             
             (fileList, maskList) = pipeDict[seed]
-            
+            print('fileL ' + str(fileList))
+            print('maskL ' + str(maskList))
 #             groupOutDir = os.path.join(OutDir, pipeline)
             groupOutDir = os.path.join(OutDir, seed)
             
@@ -187,15 +192,15 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
                                               (r'_slicer(.)*[/]','')]
             
             # smoothing
-            smoothing = pe.MapNode(interface=fsl.MultiImageMaths(), 
+            smoothing = pe.MapNode(interface=nipFsl.MultiImageMaths(), 
                                    name='smoothing', iterfield=['in_file', 
                                                                 'operand_files'])
             # sigma for gaussian
             sigma = np.round(fwhm/2.3548, prec)
-            opString = ('-kernel gauss ' + str(sigma) + ' -fmean -mas %s')
-            smoothing.inputs.inputspec.in_file = fileList
-            smoothing.inputs.inputspec.op_string = opString
-            smoothing.inputs.inputspec.operand_files = maskList
+            opString = '-kernel gauss ' + str(sigma) + ' -fmean -mas %s'
+            smoothing.inputs.in_file = fileList
+            smoothing.inputs.op_string = opString
+            smoothing.inputs.operand_files = maskList
             
             grp_wkf.inputs.inputspec.mat_file = designFile
             grp_wkf.inputs.inputspec.con_file = contrastFile
@@ -206,7 +211,7 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
             grp_wkf.inputs.inputspec.p_threshold = 0.05
             grp_wkf.inputs.inputspec.parameters = (fsl, mni)
             
-            wf.connect(smoothing, 'outputspec.out_file',
+            wf.connect(smoothing, 'out_file',
                        grp_wkf, 'inputspec.zmap_files')
             wf.connect(grp_wkf, 'outputspec.cluster_threshold',
                        ds, 'thresholded')
@@ -216,6 +221,9 @@ def Main(searchDir, modelDir, OutDir, WorkingDir):
             
             print('Running the group analysis for seed ' + seed 
                   + ' in pipeline ' + pipeline)
+            print('con ' + contrastFile)
+            print('design ' + designFile)
+            print('group ' + groupFile)
             wf.run()
             
             
