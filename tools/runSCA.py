@@ -16,6 +16,7 @@ import CPAC
 import glob
 import numpy as np
 import shutil as sl
+import nipype.pipeline.engine as pe
 
 
 def getIndexDict(covariateFile):
@@ -42,11 +43,12 @@ def getIndexDict(covariateFile):
     return covariateIndex
 
 
-def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
+def Main(searchDir, outDir, modelDir):
     '''
     Main method
     '''
     # define the paths:
+    pathToRoiConfig = ''
     roiLinear = 'roi_timeseries/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/_compcor_ncomponents_5_selector_pc10.linear1.wm1.global1.motion1.quadratic0.gm0.compcor0.csf1/_bandpass_freqs_0.009.0.1/_roi_rois_1mm/'
     roiCompcor = 'roi_timeseries/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/_compcor_ncomponents_5_selector_pc10.linear1.wm0.global0.motion1.quadratic0.gm0.compcor1.csf0/_bandpass_freqs_0.009.0.1/_roi_rois_1mm/'
     # roiPreStrat = 'roi_timeseries/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/'
@@ -63,12 +65,29 @@ def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
     funcLinearMaskMni = 'functional_brain_mask_to_standard/_scan_func_rest/'
     funcMaskMniFile = '*_3dc_tshift_RPI_3dv_automask_warp.nii.gz'
     
+    # Define parameters
+    FslDir = '/usr/share/fsl/4.1/'
+    
+    # Define output path
+    pathToRoiDump = ''
+    
     phenoIndex = getIndexDict(phenoFile)
     nuisanceIndex = getIndexDict(nuisanceFile)
     
     dataAge = np.array([])
     dataMeanFd = np.array([])
     subjectDict = {}
+    
+    # First: generate the ROI files
+    print('Creating ROI files from ' + pathToRoiConfig)
+    pathToRoiFile = CPAC.utils.create_seeds_(pathToRoiDump, 
+                                             pathToRoiConfig, 
+                                             FslDir)
+    print('These are the ROI files: ' + pathToRoiFile)
+    
+    # Next: define the output directory for the sca
+    linearOutputDir = os.path.join(outDir, 'linear')
+    compcorOutputDir = os.path.join(outDir, 'compcor')
     
     # first loop for the subjects
     for subject in os.listdir(searchDir):
@@ -77,71 +96,21 @@ def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
         findSubBase = re.search(r'[a-zA-Z]*[0-9]*(?=_)', subject)
         subBase = findSubBase.group()
         
-        # first within subject loop: add phenotypic data
-        if (subBase in open(phenoFile).read() and
-            subject in open(nuisanceFile).read()):
-            # all is good
-            # print('found ' + subBase + ' in pheno and nuisance file. Ya!')
-            # loop through the file again
-            for line in open(phenoFile, 'rb'):
-                # search for the correct line
-                # currently requires the subject name to be given at
-                # the start
-                if line.startswith(subBase):
-                    subLine = line.strip().split(',')
-            # then search for the nuisance line
-            for line in open(nuisanceFile, 'rb'):
-                # get the correct line
-                if line.startswith(subject):
-                    nuisanceLine = line.strip().split(',')
-
-        else:
-            # no phenotypic information, presently we skip these subjects
-            print('didn\'t find ' + subBase + ' in phenofile or nFile.'
-                  + ' skipping for now...')
-            continue
-        
-        # get the covariates
-        subAge = float(subLine[phenoIndex['age']])
-        subUseAge = subAge
-        subSex = subLine[phenoIndex['sex']]
-        if subSex == 'Female':
-                subSex = 1
-        elif subSex == 'Male':
-            subSex = -1
-        else:
-            print('Subject ' + subject + ' is gender neutral you dumb bitch.'
-                  + ' Aborting!!!')
-            continue
-        subMeanFd = float(nuisanceLine[nuisanceIndex['MeanFD']])
-        dataAge = np.append(dataAge, subAge)
-        dataMeanFd = np.append(dataMeanFd, subMeanFd)
-        # store in dictionary
-        subjectDict[subject] = (subUseAge, subSex, subMeanFd)
-        
-        # now get the paths for the func and the roi files
+        # now get the paths for the mni func file
         funcLinearPath = os.path.join(subjectDir, funcLinear)
         funcCompcorPath = os.path.join(subjectDir, funcCompcor)
-        roiLinearPath = os.path.join(subjectDir, roiLinear)
-        roiCompcorPath = os.path.join(subjectDir, roiCompcor)
         
         funcMaskMniPath = os.path.join(subjectDir, funcLinearMaskMni)
         
         funcLinearFile = (funcLinearPath + funcFile)
         funcCompcorFile = (funcCompcorPath + funcFile)
         
-        roiLinearFile = (roiLinearPath + roiFile)
-        roiCompcorFile = (roiCompcorPath + roiFile)      
-        
-        linearOutputDir = os.path.join(outDir, 'linear')
-        compcorOutputDir = os.path.join(outDir, 'compcor')
-        
         linearOut = os.path.join(linearOutputDir, subject)
         compcorOut = os.path.join(compcorOutputDir, subject)
         
         # now the mask files can have strange names so we have to search for
         # them        
-        funcMaskMniSearch = (funcLinearMaskMni, funcMaskMniFile)
+        funcMaskMniSearch = (funcMaskMniPath + funcMaskMniFile)
         a = glob.glob(funcMaskMniSearch)
         if len(a) != 1:
             # something is wrong, either more or less than one
@@ -157,7 +126,7 @@ def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
         
         print linearOut
         print compcorOut
-        '''
+        
         # check if the folder exists and create it if not
         if not os.path.isdir(linearOut):
             print('creating ' + linearOut)
@@ -167,7 +136,10 @@ def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
             print('creating ' + compcorOut)
             os.makedirs(compcorOut)
             
-        # and now run the workflows
+        # Create SCA workflow
+        sca_wf = pe.Workflow(name='sca_analysis')
+        # run the timeseries extraction 
+        
         # run linear workflow:
         sca_linear = CPAC.sca.create_sca((subject + '_linear'))
         sca_linear.base_dir = linearOut
@@ -186,43 +158,9 @@ def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
         print('Running compcor SCA for subject ' + subject)
         sca_compcor.run()
         print('Done running compcor SCA for subject ' + subject)
-        '''
-    # done running the SCA analysis
-    # now create the model files for the group analysis
-    subjectString = ''
-    modelString = ''
-    avgAge = np.average(dataAge)
-    avgMeanFd = np.average(dataMeanFd)
-    
-    for subject in subjectDict.keys():
-        (subUseAge, subSex, subMeanFd) = subjectDict[subject]
-        age = subUseAge - avgAge
-        meanFd = subMeanFd - avgMeanFd
-        sex = subSex
-        
-        subjectString = (subjectString + subject + '\n')
-        modelString = (modelString 
-                       + '1, ' 
-                       + str(age) + ', '
-                       + str(sex) + ', '
-                       + str(meanFd) + '\n')
-    # done with both strings, write them out
-    '''
-    if not os.path.isdir(modelDir):
-        print('Creating ' + modelDir)
-        os.makedirs(modelDir)
 
-    modelFile = (modelDir + '/modelFile.csv')
-    subjectFile = (modelDir + '/subjectList.txt')
+    # done running the SCA analysis
     
-    m = open(modelFile, 'wb')
-    m.writelines(modelString)
-    m.close()
-    
-    s = open(subjectFile, 'wb')
-    s.writelines(subjectString)
-    s.close()
-    '''
     print('Done with everything')     
 
 if __name__ == '__main__':
@@ -231,5 +169,5 @@ if __name__ == '__main__':
     nuisanceFile = sys.argv[3]
     outDir = sys.argv[4]
     modelDir = sys.argv[5]
-    Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir)
+    Main(searchDir, outDir, modelDir)
     pass

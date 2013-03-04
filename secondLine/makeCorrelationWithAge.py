@@ -38,6 +38,13 @@ def stackAges(ageStack, age):
     
     return ageStack
 
+
+def fisherZ(connectome):
+    normalizedConnectome = np.arctanh(connectome)
+    
+    return normalizedConnectome
+
+
 def correlateConnectomeWithAge(connectomeStack, ageStack):
     # First I flatten the connectomeStack
     stackShape = connectomeStack.shape
@@ -108,8 +115,19 @@ def computeFDR(pValueVector, alpha):
     else:
         # Get the first p value that passes the criterion
         pFDR = reverseP[np.min(testIndex)]
+        print('FDR corrected p value for alpha of ' + str(alpha) + ' is ' 
+              + str(pFDR)
+              + '\n' + str(testIndex[0].size) + ' out of ' 
+              + str(int(numP)) + ' p-values pass this threshold')
     
     return pFDR
+
+
+def thresholdCorrelationMatrix(correlationMatrix, pValueMatrix, pThresh):
+    threshCorrelationMatrix = np.zeros_like(correlationMatrix)
+    threshCorrelationMatrix[pValueMatrix <= pThresh] = correlationMatrix[pValueMatrix <= pThresh]
+    
+    return threshCorrelationMatrix
     
 
 def saveOutput(outputFilePath, outputMatrix):
@@ -128,12 +146,17 @@ def Main():
     connectomeSuffix = '_connectome.txt'
     
     # Define parameters
-    alpha = 0.9
+    alpha = 0.05
+    childmax = 12.0
+    adolescentmax = 18.0
     
     # Define the outputs
-    pathToCorrelationMatrix = '/home2/surchs/secondLine/correlation/correlation_matrix.txt'
-    pathToPValueMatrix = '/home2/surchs/secondLine/correlation/pvalue_matrix.txt'
-    pathToThresholdedMatrix = '/home2/surchs/secondLine/correlation/thresholded_matrix.txt'
+    pathToCorrelationMatrix = '/home2/surchs/secondLine/correlation/correlation_matrix_norm.txt'
+    # This path gets appended by the name of the age group (child, adolescent,
+    # adult)
+    # pathToCorrelationMatrixAges = '/home2/surchs/secondLine/correlation/correlation_matrix_'
+    pathToPValueMatrix = '/home2/surchs/secondLine/correlation/pvalue_matrix_norm.txt'
+    pathToThresholdedMatrix = '/home2/surchs/secondLine/correlation/thresholded_matrix_norm.txt'
     
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
@@ -144,7 +167,17 @@ def Main():
     phenoSubjects = pheno['subject'].tolist()
     phenoAges = pheno['age'].tolist()
     
-    # Prepare container variables for the connectome and for age
+    # Prepare container variables for the connectome and for age for each of 
+    # the three age groups - not currently used
+    connectomeDict = {}
+    connectomeDict['child'] = np.array([])
+    connectomeDict['adolescent'] = np.array([])
+    connectomeDict['adult'] = np.array([])
+    
+    ageDict = {}
+    ageDict['child'] = np.array([])
+    ageDict['adolescent'] = np.array([])
+    ageDict['adult'] = np.array([])
     connectomeStack = np.array([])
     ageStack = np.array([])
     
@@ -167,12 +200,40 @@ def Main():
         # Load the connectome for the subject
         connectome = loadConnectome(pathToConnectomeFile)
         print('connectome: ' + str(connectome.shape))
+        # Normalize the connectome
+        normalizedConnectome = fisherZ(connectome)
         
         # Stack the connectome
-        connectomeStack = stackConnectome(connectomeStack, connectome)
+        connectomeStack = stackConnectome(connectomeStack, normalizedConnectome)
         print('connectomeStack: ' + str(connectomeStack.shape))
         # Stack ages
         ageStack = stackAges(ageStack, phenoAge)
+        
+        # Now Stack connectome and ages again, but depending on the age of the
+        # subject put it into child, adolescent or adult - not currently used
+        if phenoAge <= childmax:
+            # the subject is a child
+            print(subject + ' is ' + str(phenoAge) + ' years old --> child')
+            connectomeDict['child'] = stackConnectome(connectomeDict['child'],
+                                                      normalizedConnectome)
+            ageDict['child'] = stackAges(ageDict['child'], phenoAge)
+            pass
+        
+        elif phenoAge > childmax and phenoAge <= adolescentmax:
+            # the subject is an adolescent
+            print(subject + ' is ' + str(phenoAge) + ' years old --> adolescent')
+            connectomeDict['adolescent'] = stackConnectome(connectomeDict['adolescent'],
+                                                           normalizedConnectome)
+            ageDict['adolescent'] = stackAges(ageDict['adolescent'], phenoAge)
+            pass
+        
+        else:
+            # the subject is an adult
+            print(subject + ' is ' + str(phenoAge) + ' years old --> adult')
+            connectomeDict['adult'] = stackConnectome(connectomeDict['adult'],
+                                                      normalizedConnectome)
+            ageDict['adult'] = stackAges(ageDict['adult'], phenoAge)
+            
         
     # Check the shapes of age and connectivity stacks
     print('ageStack.shape: ' + str(ageStack.shape) + ' connStack.shape: '
@@ -181,16 +242,29 @@ def Main():
     correlationMatrix, pValueMatrix = correlateConnectomeWithAge(connectomeStack,
                                                                  ageStack)
     
+    # Prepare FDR by pulling out the independent p values from the matrix
+    independentPValues = prepareFDR(pValueMatrix)
+    
+    # Compute threshold p value with FDR
+    pThresh = computeFDR(independentPValues, alpha)
+    
     # Threshold the pValueMatrix with FDR
-    thresholdedMatrix = computeFDR(pValueMatrix, alpha)
+    thresholdedCorrelationMatrix = thresholdCorrelationMatrix(correlationMatrix, 
+                                                              pValueMatrix, 
+                                                              pThresh)
+    
+    # Here, we could re-run the analysis for the different age groups but I 
+    # am currently not doing this because Damien Fair just did it for the whole
+    # group at once
+    
     
     # save the outputs
     status = saveOutput(pathToCorrelationMatrix, correlationMatrix)
     print('correlation matrix says ' + status)
     status = saveOutput(pathToPValueMatrix, pValueMatrix)
     print('p value matrix says ' + status)
-    status = saveOutput(pathToThresholdedMatrix, thresholdedMatrix)
-    print('thresholded matrix says ' + status)    
+    status = saveOutput(pathToThresholdedMatrix, thresholdedCorrelationMatrix)
+    print('thresholded matrix says ' + status)
         
 if __name__ == '__main__': 
     Main()    

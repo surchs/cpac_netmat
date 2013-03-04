@@ -71,6 +71,7 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
         
         wStringDW = {}
         wStringDW['child'] = ''
+        wStringDW['adolescent'] = ''
         wStringDW['adult'] = ''
         
         bStringDW = ''
@@ -78,20 +79,24 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
 
         subjectList = {}
         subjectList['child'] = ''
+        subjectList['adolescent'] = ''
         subjectList['adult'] = ''
         subjectList['between'] = ''
         # store children and adults here
         groupDict = {}
         groupDict['child'] = []
+        groupDict['adolescent'] = []
         groupDict['adult'] = []
         
         # store mean fd and age here for within group demeaning
         meanFdGroupDict = {}
         meanFdGroupDict['child'] = np.array([])
+        meanFdGroupDict['adolescent'] = np.array([])
         meanFdGroupDict['adult'] = np.array([])
         
         ageGroupDict = {}
         ageGroupDict['child'] = np.array([])
+        ageGroupDict['adolescent'] = np.array([])
         ageGroupDict['adult'] = np.array([])
 
         # store mean fd and age here for between group demeaning
@@ -162,7 +167,7 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
             # pull all the shit together
             storeStuff = (subject, tempScaPath, subMeanFd, subUseAge, subSex)
             # and then store it depending on age
-            if subAge < 13.0:
+            if subAge <= 12.0:
                 print(subBase + ' is child with age ' + str(subAge))
                 groupDict['child'].append(storeStuff)
                 meanFdGroupDict['child'] = np.append(meanFdGroupDict['child'],
@@ -175,7 +180,23 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
                 cpacString = (cpacString
                               + subBase + ', ' + 'child' + ', ' + str(subSex)
                               + ', ' + str(subMeanFd) + '\n')
-            elif subAge >= 17.0:
+                
+            elif subAge > 12.0 and subAge <= 18.0:
+                print(subBase + ' is adolescent with age ' + str(subAge))
+                groupDict['adolescent'].append(storeStuff)
+                meanFdGroupDict['adolescent'] = np.append(meanFdGroupDict['adolescent'],
+                                                     subMeanFd)
+                ageGroupDict['adolescent'] = np.append(ageGroupDict['adolescent'], 
+                                                  subUseAge)
+                betweenAge = np.append(betweenAge, subUseAge)
+                betweenFd = np.append(betweenFd, subMeanFd)
+
+                cpacString = (cpacString
+                              + subBase + ', ' + 'adolescent' + ', ' + str(subSex)
+                              + ', ' + str(subMeanFd) + '\n')
+                
+                
+            elif subAge > 18.0:
                 print(subBase + ' is adult with age ' + str(subAge))
                 groupDict['adult'].append(storeStuff)
                 meanFdGroupDict['adult'] = np.append(meanFdGroupDict['adult'],
@@ -207,13 +228,16 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
 
         '''
         String columns for between group:
-            1) Group: 1 for kids, 2 for adults
+            1) Group: 1 for kids, 2 for adolescents, 3 for adults
             2) kidsgroup: 1 for kids, 0 for adults
-            3) adultsgroup: 0 for kids, 1 for adults
-            4) kids-sex: yes
-            5) adults-sex: yes
-            6) kids-meanFd: demeaned
-            7) adults-meanFd: demeaned
+            3) adolescentgroup: 1 for adolescents
+            4) adultsgroup: 0 for kids, 1 for adults
+            5) kids-sex: yes
+            6) adolescent-sex: yes
+            7) adults-sex: yes
+            8) kids-meanFd: demeaned
+            9) adolescent-meanFD: demeaned
+            10) adults-meanFd: demeaned
 
         String columns for within group:
             1) Group: always 1
@@ -241,12 +265,12 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
                                   + '\n')
             
             bStringDW = (bStringDW
-                         + '1,1,0,' + str(subSex) + ',0,' + str(wiSubMeanFd)
-                         + ',0\n')
+                         + '1,1,0,0,' + str(subSex) + ',0,0,' + str(wiSubMeanFd)
+                         + ',0,0\n')
             
             bStringDB = (bStringDB
-                         + '1,1,0,' + str(subSex) + ',0,' + str(bwSubMeanFd)
-                         + ',0\n')
+                         + '1,1,0,0,' + str(subSex) + ',0,0,' + str(bwSubMeanFd)
+                         + ',0,0\n')
             
             subjectList['child'] = (subjectList['child'] + subject + '\n')
             
@@ -267,6 +291,38 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
                                              axis=3)
             '''
             
+            
+            
+        # now the same for the adolescent
+        for subStuff in groupDict['adolescent']:
+            (subject, tempScaPath, subMeanFd, subUseAge, subSex) = subStuff
+            # demean individual covariate by between group average
+            bwSubAge = subUseAge - avgBetweenAge
+            bwSubMeanFd = subMeanFd - avgBetweenFd
+            
+            # demean individual covariate by within group average
+            wiSubAge = subUseAge - np.average(ageGroupDict['adolescent'])
+            wiSubMeanFd = subMeanFd - np.average(meanFdGroupDict['adolescent'])
+
+            # add to csv
+            wStringDW['adolescent'] = (wStringDW['adolescent']
+                                  +'1,1,' + str(subSex) + ',' 
+                                  + str(wiSubAge) + ',' + str(wiSubMeanFd) 
+                                  + '\n')
+            
+            bStringDW = (bStringDW
+                         + '2,0,1,0,0,' + str(subSex) + ',0,0,' + str(wiSubMeanFd)
+                         + ',0\n')
+            
+            bStringDB = (bStringDB
+                         + '2,0,1,0,0,' + str(subSex) + ',0,0,' + str(bwSubMeanFd)
+                         + ',0\n')
+            
+            subjectList['adolescent'] = (subjectList['adolescent'] + subject + '\n')
+            
+            subjectList['between'] = (subjectList['between'] + subject + '\n')
+
+            
         # now the same for the adults
         for subStuff in groupDict['adult']:
             (subject, tempScaPath, subMeanFd, subUseAge, subSex) = subStuff
@@ -285,32 +341,17 @@ def Main(searchDir, templateFile, phenoFile, nuisanceFile, outDir, mName):
                                   + '\n')
             
             bStringDW = (bStringDW
-                         + '2,0,1,0,' + str(subSex) + ',0,' + str(wiSubMeanFd)
+                         + '3,0,0,1,0,0,' + str(subSex) + ',0,0,' + str(wiSubMeanFd)
                          + '\n')
             
             bStringDB = (bStringDB
-                         + '2,0,1,0,' + str(subSex) + ',0,' + str(bwSubMeanFd)
+                         + '3,0,0,1,0,0,' + str(subSex) + ',0,0,' + str(bwSubMeanFd)
                          + '\n')
             
             subjectList['adult'] = (subjectList['adult'] + subject + '\n')
             
             subjectList['between'] = (subjectList['between'] + subject + '\n')
 
-            # load the sca map for the subject
-            '''
-            f = nib.load(tempScaPath)
-            scaMap = f.get_data()
-            lastHeader = f.get_header()
-            lastAffine = f.get_affine()
-
-            # add to childMat
-            if fourDmatrix.size == 0:
-                fourDmatrix = scaMap[..., None]
-            else:
-                fourDmatrix = np.concatenate((fourDmatrix, scaMap[..., None]),
-                                             axis=3)
-            '''
-            
         # now print that shit out
         '''
         outNifti = nib.Nifti1Image(fourDmatrix, lastAffine, lastHeader)

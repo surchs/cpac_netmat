@@ -66,6 +66,7 @@ def Main():
     subjectListFile = open(pathToSubjectList, 'rb')
     subjectList = subjectListFile.readlines()
     
+    
     # Prepare container variable to stack the degree centrality vectors for
     # all subjects (in the same order as in the subject list - along 0 axis)
     degreeCentralityStack = np.array([])
