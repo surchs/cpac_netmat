@@ -41,17 +41,16 @@ def getIndexDict(covariateFile):
     return covariateIndex
 
 
-def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
+def Main(searchDir, outDir):
     '''
     Main method
     '''
     # define the paths:
-    roiLinear = 'roi_timeseries/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/_compcor_ncomponents_5_selector_pc10.linear1.wm1.global1.motion1.quadratic0.gm0.compcor0.csf1/_bandpass_freqs_0.009.0.1/_roi_rois_1mm/'
-    roiCompcor = 'roi_timeseries/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/_compcor_ncomponents_5_selector_pc10.linear1.wm0.global0.motion1.quadratic0.gm0.compcor1.csf0/_bandpass_freqs_0.009.0.1/_roi_rois_1mm/'
+    roiLinear = 'roi_timeseries/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/_compcor_ncomponents_5_selector_pc10.linear1.wm1.global1.motion1.quadratic0.gm0.compcor0.csf1/_bandpass_freqs_0.009.0.1/_roi_rois_3mm/'
+    roiCompcor = 'roi_timeseries/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/_compcor_ncomponents_5_selector_pc10.linear1.wm0.global0.motion1.quadratic0.gm0.compcor1.csf0/_bandpass_freqs_0.009.0.1/_roi_rois_3mm/'
     # roiPreStrat = 'roi_timeseries/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/'
     # roiPostStrat = '_bandpass_freqs_0.009.0.1/_roi_rois_1mm/'
     roiFile = 'roi_rois_3mm.1D'
-
 
     funcLinear = 'functional_mni/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/_compcor_ncomponents_5_selector_pc10.linear1.wm1.global1.motion1.quadratic0.gm0.compcor0.csf1/_bandpass_freqs_0.009.0.1/'
     funcCompcor = 'functional_mni/_scan_func_rest/_csf_threshold_0.98/_gm_threshold_0.7/_wm_threshold_0.98/_compcor_ncomponents_5_selector_pc10.linear1.wm0.global0.motion1.quadratic0.gm0.compcor1.csf0/_bandpass_freqs_0.009.0.1/'
@@ -91,8 +90,10 @@ def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
 
         # now the mask files can have strange names so we have to search for
         # them
-        funcMaskMniSearch = (funcLinearMaskMni, funcMaskMniFile)
+        funcMaskDir = os.path.join(subjectDir, funcLinearMaskMni)
+        funcMaskMniSearch = (funcMaskDir + funcMaskMniFile)
         a = glob.glob(funcMaskMniSearch)
+
         if len(a) != 1:
             # something is wrong, either more or less than one
             print('no good functional mask for subject ' + subject)
@@ -107,6 +108,7 @@ def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
 
         print linearOut
         print compcorOut
+
         # check if the folder exists and create it if not
         if not os.path.isdir(linearOut):
             print('creating ' + linearOut)
@@ -126,7 +128,6 @@ def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
         sca_linear.run()
         print('Done running linear SCA for subject ' + subject)
 
-
         # run compcor workflow
         sca_compcor = CPAC.sca.create_sca((subject + '_compcor'))
         sca_compcor.base_dir = compcorOut
@@ -141,9 +142,6 @@ def Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir):
 
 if __name__ == '__main__':
     searchDir = sys.argv[1]
-    phenoFile = sys.argv[2]
-    nuisanceFile = sys.argv[3]
-    outDir = sys.argv[4]
-    modelDir = sys.argv[5]
-    Main(searchDir, phenoFile, nuisanceFile, outDir, modelDir)
+    outDir = sys.argv[2]
+    Main(searchDir, outDir)
     pass

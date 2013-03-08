@@ -20,18 +20,18 @@ def makeBinary(pathToInputFile):
     inFileDir = os.path.dirname(os.path.abspath(pathToInputFile))
     outFileName = ('bin_' + inFileName)
     pathToOutputFile = os.path.join(inFileDir, outFileName)
-    commandString = ('fslmaths ' + pathToInputFile + ' -bin ' 
+    commandString = ('fslmaths ' + pathToInputFile + ' -bin '
                      + pathToOutputFile)
     print('\nI will do this now:\n'
           + '  ' + commandString)
-    os.system(commandString )
-    
+    os.system(commandString)
+
     return pathToOutputFile
 
 
 def mergeInverse(pathToPositiveFile, pathToNegativeFile, pathToOutFile):
-    commandString = ('3dcalc -a ' + pathToPositiveFile + ' -b ' 
-                     + pathToNegativeFile + ' -expr \'a - b\' -prefix ' 
+    commandString = ('3dcalc -a ' + pathToPositiveFile + ' -b '
+                     + pathToNegativeFile + ' -expr \'a - b\' -prefix '
                      + pathToOutFile)
     os.system(commandString)
     print('\nI will do this now:\n'
@@ -44,15 +44,15 @@ def mergeWithinBetween(mergedWithinFile, betweenFile, pathToOutFile):
     commandString = ('3dcalc -a ' + mergedWithinFile + ' -b ' + betweenFile
                      + ' -expr \'a + a*b\' -prefix ' + pathToOutFile)
     print('\nI will do this now:\n'
-          + '  ' + commandString)    
+          + '  ' + commandString)
     os.system(commandString)
-    
+
     return pathToOutFile
 
 
 def Main():
     # Define inputs
-    pathToSearchDir = '/home2/surchs/testing/modelOutput/ownGroupAnalysis/trifold_nmfd_mni'
+    pathToSearchDir = '/home2/surchs/testing/modelWorkingDir/trifold_nmfd_mni_pcc'
     withinSubjectContrasts = ['thresh_zstat1.nii.gz', 'thresh_zstat2.nii.gz',
                               'thresh_zstat3.nii.gz', 'thresh_zstat4.nii.gz',
                               'thresh_zstat5.nii.gz', 'thresh_zstat6.nii.gz']
@@ -65,9 +65,9 @@ def Main():
     betweenSubjectMerged = ['increase_z1z2.nii.gz', 'decrease_z1z2.nii.gz',
                             'increase_z3z4.nii.gz', 'decrease_z3z4.nii.gz',
                             'increase_z5z6.nii.gz', 'decrease_z5z6.nii.gz']
-    
+
     relativePathToFiles = 'thresholded'
-    
+
     # Get the list of seed directories in the model directory
     seedList = returnListOfSeeds(pathToSearchDir)
     for seed in seedList:
@@ -77,7 +77,7 @@ def Main():
         binaryBetweenContrasts = []
         mergedBinWithinFiles = []
         mergedWithinFiles = []
-        
+
         pathToSeedDir = os.path.join(pathToSearchDir, seed)
         pathToContrasts = os.path.join(pathToSeedDir, relativePathToFiles)
         # Binarize all the contrasts
@@ -86,15 +86,15 @@ def Main():
             pathToContrast = os.path.join(pathToContrasts, contrast)
             binaryContrast = makeBinary(pathToContrast)
             binaryWithinContrasts.append(binaryContrast)
-        
+
         for contrast in betweenSubjectContrasts:
             print('\nBinarizing contrast ' + contrast + ' in seed ' + seed)
             pathToContrast = os.path.join(pathToContrasts, contrast)
             binaryContrast = makeBinary(pathToContrast)
             binaryBetweenContrasts.append(binaryContrast)
-            
+
         # Merge the within contrasts with their respective partner (+1)
-        for run, i  in enumerate(np.arange(0,6,2)):
+        for run, i  in enumerate(np.arange(0, 6, 2)):
             # Binary contrasts
             posFile = binaryWithinContrasts[i]
             negFile = binaryWithinContrasts[i + 1]
@@ -105,7 +105,7 @@ def Main():
             # Now merge the files
             mergedBinFile = mergeInverse(posFile, negFile, mergePath)
             mergedBinWithinFiles.append(mergedBinFile)
-            
+
             # non-binary files
             posFile = withinSubjectContrasts[i]
             negFile = withinSubjectContrasts[i + 1]
@@ -115,16 +115,16 @@ def Main():
             mergePath = os.path.join(pathToContrasts, mergeFile)
             mergedFile = mergeInverse(posPath, negPath, mergePath)
             mergedWithinFiles.append(mergedFile)
-            
+
         # Merge merged whithin contrasts with between contrasts
-        for run, i  in enumerate(np.arange(0,6,2)):
+        for run, i  in enumerate(np.arange(0, 6, 2)):
             contrast = mergedBinWithinFiles[run]
             increaseContrast = binaryBetweenContrasts[2]
             decreaseContrast = binaryBetweenContrasts[3]
             print('merging within subject contrast ' + contrast + '\n'
                   + ' with ' + increaseContrast + ' for seed ' + seed)
             increasingOutputFile = betweenSubjectMerged[i]
-            increasingOutputPath = os.path.join(pathToContrasts, 
+            increasingOutputPath = os.path.join(pathToContrasts,
                                                 increasingOutputFile)
             print('merging within subject contrast ' + contrast + '\n'
                   + ' with ' + decreaseContrast + ' for seed ' + seed)
@@ -135,7 +135,7 @@ def Main():
             mergeWithinBetween(contrast, increaseContrast, increasingOutputPath)
             # make decreasing contrast merge
             mergeWithinBetween(contrast, decreaseContrast, decreasingOutputPath)
-            
+
 
 if __name__ == '__main__':
     Main()
