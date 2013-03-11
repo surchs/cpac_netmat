@@ -188,7 +188,7 @@ def saveNumpyTextFile(outputFilePath, outputMatrix):
 
 def Main():
     # Define inputs
-    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/correlation_matrix_norm.txt'
+    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/abide/correlation_matrix_norm_dos.txt'
     pathToDistancesMatrix = '/home2/surchs/secondLine/roiDistances/cam200wave_distances.txt'
     pathToPvaluesMatrix = '/home2/surchs/secondLine/correlation/pvalue_matrix.txt'
     pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes.dict'

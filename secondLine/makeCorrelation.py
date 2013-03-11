@@ -15,47 +15,47 @@ def testCorrelation():
     correlationMatrix = computeCorrelation(timeSeriesMatrix)
     status = saveCorrelationMatrix(correlationMatrix, outputFilePath)
     print(status)
-    
+
     return
 
 def loadTimeSeriesMatrix(pathToTimeSeries):
     timeSeriesMatrix = np.loadtxt(pathToTimeSeries)
-    
+
     return timeSeriesMatrix
 
 
 def computeCorrelation(timeSeriesMatrix):
     correlationMatrix = np.corrcoef(timeSeriesMatrix)
-    
+
     return correlationMatrix
 
 
 def saveCorrelationMatrix(correlationMatrix, outputFilePath):
     np.savetxt(outputFilePath, correlationMatrix, fmt='%.12f')
     return 'cool'
-        
+
 
 def Main():
     # Define the inputs
-    pathToSubjectList = '/home2/surchs/secondLine/configs/subjectList.csv'
-    pathToTimeSeriesDir = '/home2/surchs/secondLine/timeseries'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/wave/wave_subjectList_compcor.csv'
+    pathToTimeSeriesDir = '/home2/surchs/secondLine/timeseries/wave/dos160'
     # Define input timeseries suffix
-    timeSeriesSuffix = '_timeseries.txt'
-    
+    timeSeriesSuffix = '_timeseries_comp.txt'
+
     # Define output directory
-    pathToOutputDir = '/home2/surchs/secondLine/connectomes'
+    pathToOutputDir = '/home2/surchs/secondLine/connectomes/wave/dos160'
     # Define output file suffix
-    outFileSuffix = '_connectome.txt'
-    
+    outFileSuffix = '_connectome_comp.txt'
+
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
     subjectList = subjectListFile.readlines()
-    
+
     for subject in subjectList:
         subject = subject.strip()
-        pathToTimeSeries = os.path.join(pathToTimeSeriesDir, 
+        pathToTimeSeries = os.path.join(pathToTimeSeriesDir,
                                         (subject + timeSeriesSuffix))
-        
+
         timeSeriesMatrix = loadTimeSeriesMatrix(pathToTimeSeries)
         correlationMatrix = computeCorrelation(timeSeriesMatrix)
         # Define the file name for the connectome output
@@ -64,7 +64,7 @@ def Main():
         # save the connectome matrix in the specified output file
         status = saveCorrelationMatrix(correlationMatrix, outputFilePath)
         print(subject + ' says ' + status)
-        
-        
-if __name__ == '__main__': 
+
+
+if __name__ == '__main__':
     Main()
