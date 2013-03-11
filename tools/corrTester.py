@@ -39,7 +39,7 @@ def Main(subFile, basePath, seed, seedOut, fileMask):
         # run the correlation in MNI space
         commands.getoutput('3dTcorr1D  -pearson -prefix %s  %s  %s'
                            % (outFile, funcPath, roiPath))
-
+        # this creates a 4D (actually 5D) file with the ROI maps stacked
         seedIndex = {}
         seedString = ''
         roiF = open(roiPath, 'rb')
