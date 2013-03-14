@@ -73,7 +73,7 @@ def saveNumpyTextFile(outputFilePath, outputMatrix):
 
 def Main():
     # Define inputs
-    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/wave/dos160/thresholded_matrix_norm_dos.txt'
+    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/abide/dos160/glm_thresholded_matrix_glob_c.txt'
     pathToDistancesMatrix = '/home2/surchs/secondLine/roiDistances/dos160wave_distances.txt'
 
     # Define Outputs

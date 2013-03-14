@@ -10,25 +10,28 @@ import pandas as pa
 # using
 #    - non scrubbing
 #    - non compcor
-pathToSymlinks = '/home2/data/Projects/wave_uniform/output_dir/sym_links/'
-pipelineDir = 'pipeline_HackettCity/'
-strategyDir = '_compcor_ncomponents_5_linear1.motion1.compcor1.CSF_0.98_GM_0.7_WM_0.98/'
-pathToPipeline = os.path.join(pathToSymlinks, pipelineDir, strategyDir)
+pathToSymlinks = '/home2/data/Projects/netmat/'
+pipelineDir = 'workingdirs/'
+strategyDir = 'abide_246/'
+# pathToPipeline = os.path.join(pathToSymlinks, pipelineDir, strategyDir)
+pathToPipeline = '/home2/data/Projects/netmat/outputdirs/abide_246/sym_links/pipeline_HackettCity/linear1.wm1.global1.motion1.csf1_CSF_0.98_GM_0.7_WM_0.95/'
+
+debugPrefix = 'resting_preproc_'
 
 # Relative path to functional file for each subject
 subjectSuffix = '_session_1'
-funcDir = 'scan_func_rest/func/bandpass_freqs_0.009.0.1'
+funcDir = 'scan_rest_1_rest/func/bandpass_freqs_0.009.0.08'
 funcFile = 'functional_mni.nii.gz'
 
 # Input phenotypic file
-pathToPheno = '/home2/surchs/secondLine/configs/wave/wave_pheno81_compcor.csv'
+pathToPheno = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
 # Output functional path file
-funcPathsFile = '/home2/surchs/secondLine/configs/wave/pathsToFuncFiles_wave_compcor.csv'
+funcPathsFile = '/home2/surchs/secondLine/configs/abide/pathsToFuncFiles_abide_global.csv'
 
 # Reading phenotypic file and creating list of subjects
 pheno = pa.read_csv(pathToPheno)
 pheno.astype(str)
-subjectList = pheno['subject'].tolist()
+subjectList = pheno['SubID'].tolist()
 
 # Create container for functional paths
 funcFileList = []
@@ -36,7 +39,11 @@ funcFileList = []
 # loop through subjects and look if funcfile is where we expect it to be
 # and then append path to functional file to funcFileList
 for subject in subjectList:
-    # subject = ('00' + str(subject))
+    subject = ('00' + str(subject))
+
+    # DEBUG DEBUG
+    # subject = (debugPrefix + subject)
+
     subjectDir = os.path.join(pathToPipeline, (subject + subjectSuffix))
     funcPath = os.path.join(subjectDir, funcDir, funcFile)
     if os.path.isfile(funcPath):

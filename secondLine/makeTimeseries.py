@@ -48,16 +48,16 @@ def getTimeSeries(args):
 
 def Main():
     # Define input files
-    pathToSubjectFile = '/home2/surchs/secondLine/configs/wave/wave_subjectList_compcor.csv'
-    pathToFuncFile = '/home2/surchs/secondLine/configs/wave/pathsToFuncFiles_wave_compcor.csv'
-    pathToRoiFile = '/home2/surchs/secondLine/masks/dos160_wave_81_3mm.nii.gz'
+    pathToSubjectFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
+    pathToFuncFile = '/home2/surchs/secondLine/configs/abide/pathsToFuncFiles_abide_global.csv'
+    pathToRoiFile = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
 
     # Define parameters
     nProcs = 15
 
     # Define output files
-    outputDirectory = '/home2/surchs/secondLine/timeseries/wave/dos160'
-    subjectTimeSeriesSuffix = '_timeseries_comp.txt'
+    outputDirectory = '/home2/surchs/secondLine/timeseries/abide/dos160'
+    subjectTimeSeriesSuffix = '_timeseries_glob.txt'
 
     # Read the input files
     roiImage = nib.load(pathToRoiFile)

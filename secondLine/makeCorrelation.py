@@ -37,15 +37,15 @@ def saveCorrelationMatrix(correlationMatrix, outputFilePath):
 
 def Main():
     # Define the inputs
-    pathToSubjectList = '/home2/surchs/secondLine/configs/wave/wave_subjectList_compcor.csv'
-    pathToTimeSeriesDir = '/home2/surchs/secondLine/timeseries/wave/dos160'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
+    pathToTimeSeriesDir = '/home2/surchs/secondLine/timeseries/abide/dos160'
     # Define input timeseries suffix
-    timeSeriesSuffix = '_timeseries_comp.txt'
+    timeSeriesSuffix = '_timeseries_glob.txt'
 
     # Define output directory
-    pathToOutputDir = '/home2/surchs/secondLine/connectomes/wave/dos160'
+    pathToOutputDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
     # Define output file suffix
-    outFileSuffix = '_connectome_comp.txt'
+    outFileSuffix = '_connectome_glob.txt'
 
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')

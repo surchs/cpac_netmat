@@ -49,7 +49,7 @@ def getUniqueMatrixElements(squareMatrix):
 
 def threshold(inputMatrix):
     # Define threshold
-    thresh = 0.05
+    thresh = 1
     # Prepare empty matrix
     emptyMatrix = np.zeros_like(inputMatrix, dtype=int)
     # Set empty matrix to one where input passes threshold
@@ -188,12 +188,12 @@ def saveNumpyTextFile(outputFilePath, outputMatrix):
 
 def Main():
     # Define inputs
-    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/abide/correlation_matrix_norm_dos.txt'
-    pathToDistancesMatrix = '/home2/surchs/secondLine/roiDistances/cam200wave_distances.txt'
-    pathToPvaluesMatrix = '/home2/surchs/secondLine/correlation/pvalue_matrix.txt'
-    pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes.dict'
-    pathToRoiMask = '/home2/surchs/masks/ROIs/craddock200wave_p1l.nii.gz'
-    pathToSubjectList = '/home2/surchs/secondLine/configs/subjectList.csv'
+    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/abide/dos160/glm_thresholded_matrix_glob_c.txt'
+    pathToDistancesMatrix = '/home2/surchs/secondLine/roiDistances/dos160abide246_3mm_distances.txt'
+    pathToPvaluesMatrix = '/home2/surchs/secondLine/correlation/abide/dos160/glm_pvalue_matrix_glob_c.txt'
+    pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
+    pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
 
     # Define Outputs
     pathToPositiveAgeDistances = '/home2/surchs/secondLine/correlation/group_distances_age_pos_plevel.txt'
