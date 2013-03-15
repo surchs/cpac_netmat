@@ -137,9 +137,9 @@ def dualPlotDistances(posWithin, negWithin, posBetween, negBetween, title):
     print('posWithin ' + str(nPosW) + ' negWithin ' + str(nNegW))
     print('posBetween ' + str(nPosB) + ' negBetween ' + str(nNegB))
 
-    fig = plt.figure(1)
-    within = fig.add_subplot(121, title='within network')
-    between = fig.add_subplot(122, title='between network')
+    fig, (within, between) = plt.subplots(1, 2, sharex=True, sharey=False)
+    within.set_title('within network')
+    between.set_title('between network')
 
     if nPosW > 0:
         within.hist(posWithin, bins=10, color='b',
@@ -158,13 +158,13 @@ def dualPlotDistances(posWithin, negWithin, posBetween, negBetween, title):
 
 
     if nPosB > 0:
-        between.hist(posBetween, bins=10, color='r',
+        between.hist(posBetween, bins=10, color='b',
                      label='age pos')
     else:
         print('Not enough values in positive between')
 
     if nNegB > 0:
-        between.hist(negBetween, bins=10, color='b',
+        between.hist(negBetween, bins=10, color='r',
                      alpha=0.5, label='age neg')
     else:
         print('Not enough values in negative between')
@@ -188,9 +188,9 @@ def saveNumpyTextFile(outputFilePath, outputMatrix):
 
 def Main():
     # Define inputs
-    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/abide/dos160/glm_thresholded_matrix_glob_c.txt'
+    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/abide/dos160/glm_thresholded_matrix_glob_corr.txt'
     pathToDistancesMatrix = '/home2/surchs/secondLine/roiDistances/dos160abide246_3mm_distances.txt'
-    pathToPvaluesMatrix = '/home2/surchs/secondLine/correlation/abide/dos160/glm_pvalue_matrix_glob_c.txt'
+    pathToPvaluesMatrix = '/home2/surchs/secondLine/correlation/abide/dos160/glm_pvalue_matrix_glob_corr.txt'
     pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
     pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
     pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'

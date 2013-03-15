@@ -279,12 +279,36 @@ def dualPlot(resultWithin, resultBetween, title):
     # If they pass, take one as the reference age
     refAge = wTrue
 
-    fig, (within, between) = plt.subplots(1, 2, sharex=True, sharey=False)
+    fig, (within, between) = plt.subplots(1, 2, sharex=False, sharey=False)
 
     # fit ages
+    predMat = np.concatenate((refAge[..., None], np.ones_like(refAge)[..., None]),
+                             axis=1)
+    WrobustResult = fitRobust(wPred, predMat)
+    WglmResult = fitGLM(wPred, predMat)
+    BrobustResult = fitRobust(bPred, predMat)
+    BglmResult = fitGLM(bPred, predMat)
+
+    WrobustSlope = WrobustResult.params[0]
+    WrobustIntercept = WrobustResult.params[1]
+    WglmSlope = WglmResult.params[0]
+    WglmIntercept = WglmResult.params[1]
+
+    BrobustSlope = BrobustResult.params[0]
+    BrobustIntercept = BrobustResult.params[1]
+    BglmSlope = BglmResult.params[0]
+    BglmIntercept = BglmResult.params[1]
+
+    xnew = np.arange(refAge.min() - 1, refAge.max() + 1, 0.1)
+    WrobustFit = WrobustSlope * xnew + WrobustIntercept
+    WglmFit = WglmSlope * xnew + WglmIntercept
+
+    BrobustFit = BrobustSlope * xnew + BrobustIntercept
+    BglmFit = BglmSlope * xnew + BglmIntercept
+
     wP = np.polyfit(wTrue, wPred, 1)
     bP = np.polyfit(bTrue, bPred, 1)
-    xnew = np.arange(refAge.min() - 1, refAge.max() + 1, 0.1)
+
     wFit = np.polyval(wP, xnew)
     bFit = np.polyval(bP, xnew)
 
@@ -292,26 +316,78 @@ def dualPlot(resultWithin, resultBetween, title):
     within.set_title('within network')
     between.set_title('between network')
 
-    withinCorr, withinP = st.pearsonr(wTrue, wPred)
+    # withinCorr, withinP = st.pearsonr(wTrue, wPred)
     within.plot(wTrue, wPred, 'k.')
-    within.plot(xnew, wFit, 'r', label=(str(np.round(withinCorr, 2))
-                                        + ' '
-                                        + str(np.round(withinP, 4))))
+    within.plot(xnew, WrobustFit, 'r', label='robust ' + str(np.round(WrobustSlope, 2)))
+    within.plot(xnew, WglmFit, 'b', label='glm ' + str(np.round(WglmSlope, 2)))
+    within.plot(wTrue, wTrue, 'g', label='true')
+
     within.set_xlabel('true age')
     within.set_ylabel('predicted age')
     within.legend()
 
 
-    betweenCorr, betweenP = st.pearsonr(bTrue, bPred)
+    # betweenCorr, betweenP = st.pearsonr(bTrue, bPred)
     between.plot(bTrue, bPred, 'k.')
-    between.plot(xnew, bFit, 'b', label=(str(np.round(betweenCorr, 2))
-                                         + ' '
-                                         + str(np.round(betweenP, 4))))
+    between.plot(xnew, BrobustFit, 'r', label='robust ' + str(np.round(BrobustSlope, 2)))
+    between.plot(xnew, BglmFit, 'b', label='glm ' + str(np.round(BglmSlope, 2)))
+    between.plot(bTrue, bTrue, 'g', label='true')
     between.set_xlabel('true age')
     between.set_ylabel('predicted age')
     between.legend()
 
     fig.suptitle(title)
+    plt.show()
+    raw_input("Press Enter to continue...")
+    plt.close()
+
+
+def fitRobust(dataVec, predMat):
+    '''
+    Method to fit a vector of data by a vector of predictions
+    '''
+    robust = sm.RLM(dataVec, predMat, M=sm.robust.norms.HuberT())
+    results = robust.fit()
+
+    return results
+
+
+def fitGLM(dataVector, predMat):
+    # run a glm with only one factor
+    model = sm.OLS(dataVector, predMat)
+    results = model.fit()
+
+    return results
+
+
+def singlePlot(result, title):
+    true = result[:, 0]
+    pred = result[:, 1]
+
+    # fit ages
+    predMat = np.concatenate((true[..., None], np.ones_like(true)[..., None]),
+                             axis=1)
+    robustResult = fitRobust(pred, predMat)
+    glmResult = fitGLM(pred, predMat)
+
+    # Plot the ages again
+    robustSlope = robustResult.params[0]
+    robustIntercept = robustResult.params[1]
+    glmSlope = glmResult.params[0]
+    glmIntercept = glmResult.params[1]
+
+    # prepare
+    xnew = np.arange(true.min() - 1, true.max() + 1, 0.1)
+    robustFit = robustSlope * xnew + robustIntercept
+    glmFit = glmSlope * xnew + glmIntercept
+
+    # Plot shit
+    plt.plot(true, pred, 'k.')
+    plt.plot(true, true, 'g', label='perfect')
+    plt.plot(xnew, robustFit, 'r', label='robust')
+    plt.plot(xnew, glmFit, 'b', label='glm')
+    plt.legend()
+    plt.title(title)
     plt.show()
     raw_input("Press Enter to continue...")
     plt.close()
@@ -345,9 +421,9 @@ def Main():
     pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
     pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
 
-    connectomeSuffix = '_connectome_glob.txt'
+    connectomeSuffix = '_connectome_glob_corr.txt'
 
-    pathToOutputFile = '/home2/surchs/secondLine/SVR/abide/dos/meanConn.dict'
+    pathToOutputFile = '/home2/surchs/secondLine/SVR/abide/dos/corr_connectivity.dict'
 
     runwhat = 'glm'
     doPlot = False
@@ -355,9 +431,9 @@ def Main():
     # Define parameters
     alpha = 0.1
     kfold = 10
-    nCors = 20
+    nCors = 10
     kernel = 'linear'
-    takeFeat = 'conn'
+    takeFeat = 'brain'
 
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
@@ -416,8 +492,12 @@ def Main():
                                             (subject + connectomeSuffix))
         # Load the connectome for the subject
         connectome = loadConnectome(pathToConnectomeFile)
-        normalizedConnectome = fisherZ(connectome)
+        # Check if nan in there
+        if np.isnan(connectome).any():
+            print(subject + ' has nan in the connectome!')
 
+        # normalizedConnectome = fisherZ(connectome)
+        normalizedConnectome = connectome
         # Get the mean connectivity
         uniqueConnections = getUniqueMatrixElements(normalizedConnectome)
         meanConn = np.mean(uniqueConnections)
@@ -432,6 +512,11 @@ def Main():
     # Now we have the connectome stack
     # Let's loop through the networks again
     for i, network in enumerate(networkNodes.keys()):
+        if takeFeat == 'brain':
+            # Leave it alone
+            print('Looking for whole brain here...')
+            continue
+
         print('plotting network ' + network)
         netNodes = networkNodes[network]
         # get boolean index of within network nodes
@@ -494,17 +579,47 @@ def Main():
             result = (withinResult, betweenResult)
             networkResults[network] = result
 
-    if not takeFeat == 'conn':
+    if not takeFeat == 'conn' and not takeFeat == 'brain':
+        # Check if the features are ok
+        print('Age: ' + str(ageStack.shape))
+        print('Within: ' + str(withinFeature.shape))
+        print('Between: ' + str(betweenFeature.shape))
+
+        if np.isnan(withinFeature).any():
+            howMany = len(np.where(np.isnan(withinFeature))[0])
+            message = ('within matrix contains nan at ' + str(howMany)
+                       + ' locations')
+            raise Exception(message)
+
+        if np.isnan(betweenFeature).any():
+            howMany = len(np.where(np.isnan(betweenFeature))[0])
+            message = ('between matrix contains nan ' + str(howMany)
+                       + ' locations')
+            raise Exception(message)
+
+
         # do the real thing
-        withinResult = mainSVR(withinFeature, ageStack, crossVal, kernel)
-        betweenResult = mainSVR(betweenFeature, ageStack, crossVal, kernel)
+
+        withinResult = mainSVR(withinFeature, ageStack, crossVal, kernel, nCors)
+        betweenResult = mainSVR(betweenFeature, ageStack, crossVal, kernel, nCors)
         print('Plotting what we actually wanted...')
         dualPlot(withinResult, betweenResult, 'within and between connectivit'
                  + ' predicting age')
 
+    if takeFeat == 'brain':
+        print('Lets do the brain!')
+        mask = np.ones_like(connectomeStack[..., 0])
+        mask = np.tril(mask, -1)
+        feature = connectomeStack[mask == 1].T
+        result = mainSVR(feature, ageStack, crossVal, kernel, nCors)
+        singlePlot(result, 'whole brain SVR plot')
+        status = saveOutput(pathToOutputFile, result)
+        print(status)
+
+
     # Save the networkResults
-    status = saveOutput(pathToOutputFile, networkResults)
-    print(status)
+    # status = saveOutput(pathToOutputFile, networkResults)
+    # print(status)
 
     # Done with running analysis. Plotting by network now
     networkPlot(networkResults)

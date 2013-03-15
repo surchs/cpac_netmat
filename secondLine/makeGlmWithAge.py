@@ -251,23 +251,23 @@ def Main():
     pathToPhenotypicFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
     pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
 
-    connectomeSuffix = '_connectome_glob.txt'
+    connectomeSuffix = '_connectome_glob_corr.txt'
 
     debugConnStack = '/home2/surchs/secondLine/debug/ConnStack.npy'
     debugCorrStack = '/home2/surchs/secondLine/debug/CorrStack.npy'
     debugAgeStack = '/home2/surchs/secondLine/debug/AgeStack.npy'
 
     runwhat = 'glm'
-    doPlot = False
+    doPlot = True
 
     # Define parameters
     alpha = 0.05
 
     # Define the outputs
     outPath = '/home2/surchs/secondLine/correlation/abide/dos160/'
-    correlationFileName = (runwhat + '_matrix_glob_c.txt')
-    pValueFileName = (runwhat + '_pvalue_matrix_glob_c.txt')
-    thresholdFileName = (runwhat + '_thresholded_matrix_glob_c.txt')
+    correlationFileName = (runwhat + '_matrix_glob_corr.txt')
+    pValueFileName = (runwhat + '_pvalue_matrix_glob_corr.txt')
+    thresholdFileName = (runwhat + '_thresholded_matrix_glob_corr.txt')
 
     pathToCorrelationMatrix = os.path.join(outPath, correlationFileName)
     pathToPValueMatrix = os.path.join(outPath, pValueFileName)
@@ -313,7 +313,8 @@ def Main():
         connectome = loadConnectome(pathToConnectomeFile)
         print('connectome: ' + str(connectome.shape))
         # Normalize the connectome
-        normalizedConnectome = fisherZ(connectome)
+        # normalizedConnectome = fisherZ(connectome)
+        normalizedConnectome = connectome
 
         # Get the mean connectivity
         uniqueConnections = getUniqueMatrixElements(normalizedConnectome)
@@ -345,7 +346,20 @@ def Main():
 
     if doPlot:
         # Plot mean Connectivity with age
+        # Make fit of meanConnStack and Age
+        fitStack = np.concatenate((ageStack[..., None],
+                                   np.ones_like(ageStack)[..., None]),
+                                  axis=1)
+        results = fitRobust(meanConnStack, fitStack)
+        slope = results.params[0]
+        intercept = results.params[1]
+
+        xnew = np.arange(ageStack.min() - 1, ageStack.max() + 1, 0.1)
+        meanFit = slope * xnew + intercept
+        showSlope = np.round(slope, 2)
+
         plt.plot(ageStack, meanConnStack, '.k', label='mean connectivity')
+        plt.plot(xnew, meanFit, 'r', label='robust fit ' + str(showSlope))
         plt.xlabel('age')
         plt.ylabel('mean connectivity')
         plt.title('mean connectivity across age')
@@ -353,6 +367,45 @@ def Main():
         plt.show()
         raw_input('Enter to continue...')
         plt.close()
+
+    if doPlot:
+        # Plot an exemplary connection across age
+        connVec = connectomeStack[10, 14, :]
+
+        # Fit it
+        fitStack = np.concatenate((ageStack[..., None],
+                                   np.ones_like(ageStack)[..., None]),
+                                  axis=1)
+        results = fitRobust(connVec, fitStack)
+        slope = results.params[0]
+        intercept = results.params[1]
+
+        xnew = np.arange(ageStack.min() - 1, ageStack.max() + 1, 0.1)
+        meanFit = slope * xnew + intercept
+        showSlope = np.round(slope, 2)
+
+        plt.plot(ageStack, connVec, '.k')
+        plt.plot(xnew, meanFit, 'r', label='robust fit ' + str(showSlope))
+        plt.xlabel('age')
+        plt.ylabel('connectivity')
+        plt.title('connectivity across age')
+        plt.show()
+        raw_input('Enter to continue...')
+        plt.close()
+
+    if doPlot:
+        # Plot the distribution of SD for all the timeseries
+        mask = np.ones_like(connectomeStack[..., 0])
+        mask = np.tril(mask, -1)
+        flatConnectome = connectomeStack[mask == 1]
+        deviation = np.std(flatConnectome, axis=1)
+        plt.hist(deviation)
+        plt.xlabel('standard deviation of connectivity across subjects')
+        plt.title('SD of connectivity across subjects')
+        plt.show()
+        raw_input('Enter to continue...')
+        plt.close()
+
 
     # Now run through the model
     (regressorMatrix,
@@ -390,12 +443,12 @@ def Main():
 
 
     # save the outputs
-    status = 'debug'
-    # status = saveOutput(pathToCorrelationMatrix, regressorMatrix)
+    # status = 'debug'
+    status = saveOutput(pathToCorrelationMatrix, regressorMatrix)
     print('correlation matrix says ' + status)
-    # status = saveOutput(pathToPValueMatrix, pValueMatrix)
+    status = saveOutput(pathToPValueMatrix, pValueMatrix)
     print('p value matrix says ' + status)
-    # status = saveOutput(pathToThresholdedMatrix, thresholdedRegressorMatrix)
+    status = saveOutput(pathToThresholdedMatrix, thresholdedRegressorMatrix)
     print('thresholded matrix says ' + status)
 
 

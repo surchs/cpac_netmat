@@ -92,7 +92,6 @@ def dualPlot(age, meanWithin, meanBetween, title):
     wFit = np.polyval(wP, xnew)
     bFit = np.polyval(bP, xnew)
 
-
     within.set_title('within network')
     between.set_title('between network')
 
