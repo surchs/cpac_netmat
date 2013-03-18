@@ -170,7 +170,6 @@ def findParameters(trainFeature, trainAge, kernel, nCors):
     bestC = secondTrainModel.best_estimator_.C
     bestE = secondTrainModel.best_estimator_.epsilon
 
-
     return bestC, bestE
 
 
@@ -192,7 +191,6 @@ def testModel(model, testFeature):
     predictedAge = model.predict(testFeature)
 
     return predictedAge
-
 
 
 def mainSVR(feature, age, crossVal, kernel, nCors):
@@ -326,7 +324,6 @@ def dualPlot(resultWithin, resultBetween, title):
     within.set_ylabel('predicted age')
     within.legend()
 
-
     # betweenCorr, betweenP = st.pearsonr(bTrue, bPred)
     between.plot(bTrue, bPred, 'k.')
     between.plot(xnew, BrobustFit, 'r', label='robust ' + str(np.round(BrobustSlope, 2)))
@@ -414,26 +411,22 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
-    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
-    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
-    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
+    pathToConnectomeDir = '/home/sebastian/Projects/secondLine/connectome/testing'
+    pathToPhenotypicFile = '/home/sebastian/Projects/secondLine/config/sub100pheno.csv'
+    pathToSubjectList = '/home/sebastian/Projects/secondLine/config/subjectList.csv'
 
-    pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
-    pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
+    pathToNetworkNodes = '/home/sebastian/Projects/secondLine/masks/networkNodes_dosenbach.dict'
+    pathToRoiMask = '/home/sebastian/Projects/secondLine/masks/dos160_abide_246_3mm.nii.gz'
 
-    connectomeSuffix = '_connectome_glob_corr.txt'
+    connectomeSuffix = '_noisy.txt'
 
-    pathToOutputFile = '/home2/surchs/secondLine/SVR/abide/dos/corr_connectivity.dict'
-
-    runwhat = 'glm'
-    doPlot = False
+    pathToOutputFile = '/home/sebastian/Projects/secondLine/correlation/corr_connectivity_noisy.dict'
 
     # Define parameters
-    alpha = 0.1
     kfold = 10
-    nCors = 10
+    nCors = 1
     kernel = 'linear'
-    takeFeat = 'brain'
+    takeFeat = 'mean'
 
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
@@ -441,7 +434,7 @@ def Main():
 
     # Read the phenotypic file
     pheno = loadPhenotypicFile(pathToPhenotypicFile)
-    phenoSubjects = pheno['SubID'].tolist()
+    phenoSubjects = pheno['subject'].tolist()
     phenoAges = pheno['age'].tolist()
 
     # Read network nodes
@@ -477,7 +470,7 @@ def Main():
         subject = subject.strip()
         phenoSubject = phenoSubjects[i]
         # Workaround for dumb ass pandas
-        phenoSubject = ('00' + str(phenoSubject))
+        # phenoSubject = ('00' + str(phenoSubject))
 
         if not subject == phenoSubject:
             raise Exception('The Phenofile returned a different subject name '
@@ -597,12 +590,23 @@ def Main():
                        + ' locations')
             raise Exception(message)
 
-
         # do the real thing
-
         withinResult = mainSVR(withinFeature, ageStack, crossVal, kernel, nCors)
         betweenResult = mainSVR(betweenFeature, ageStack, crossVal, kernel, nCors)
         print('Plotting what we actually wanted...')
+        # Plot mean connectivity across age
+        plt.plot(ageStack, withinFeature, 'g.')
+        plt.title('within mean connectivity')
+        plt.show()
+        raw_input('hallo...')
+        plt.close()
+
+        plt.plot(ageStack, betweenFeature, 'g.')
+        plt.title('between mean connectivity')
+        plt.show()
+        raw_input('hallo...')
+        plt.close()
+
         dualPlot(withinResult, betweenResult, 'within and between connectivit'
                  + ' predicting age')
 

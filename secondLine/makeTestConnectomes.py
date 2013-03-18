@@ -29,7 +29,7 @@ def binarize(value):
     return binarized
 
 
-def makeConnectome(pathToOutputDir, pathToSubjectPheno):
+def makeConnectome(pathToOutputDir, pathToSubjectPheno, pathToSubjectList):
     '''
     just make a quick range of subjects and plot one of the 'connection'
     '''
@@ -55,13 +55,15 @@ def makeConnectome(pathToOutputDir, pathToSubjectPheno):
     # Prepare container for the ages and connections of the subjects
     ageArray = np.array([])
     connectomeStack = np.array([])
+    phenoStr = 'subject,age\n'
+    subjectStr = ''
 
     print('Creating connections now')
     # Loop through the subjects
     run = 0
     while run < 100:
         # Make the subjects age
-        subAge = np.random.uniform(6, 20)
+        subAge = np.round(np.random.uniform(6, 20), 2)
         ageArray = np.append(ageArray, subAge)
 
         # Create noise
@@ -78,10 +80,14 @@ def makeConnectome(pathToOutputDir, pathToSubjectPheno):
 
         # create subject name
         subName = ('sub_' + str(run))
-        fileName = (subName + '.txt')
+        fileName = (subName + '_noisy.txt')
         filePath = os.path.join(pathToOutputDir, fileName)
         # save the connectome
         saveConnectome(template, filePath)
+
+        # Append pheno string
+        phenoStr = (phenoStr + (subName + ',' + str(subAge) + '\n'))
+        subjectStr = (subjectStr + subName + '\n')
 
         # Store the subjects connectome
         if connectomeStack.size == 0:
@@ -96,6 +102,15 @@ def makeConnectome(pathToOutputDir, pathToSubjectPheno):
     print('Done creating connections')
     print('Connectome: ' + str(connectomeStack.shape))
 
+    # Save the pheno string
+    phenoF = open(pathToSubjectPheno, 'wb')
+    phenoF.write(phenoStr)
+    phenoF.close()
+
+    subF = open(pathToSubjectList, 'wb')
+    subF.write(subjectStr)
+    subF.close()
+
     # Make a sanity check of connections with age
     conn1 = connectomeStack[10, 14, :]
     conn2 = connectomeStack[100, 13, :]
@@ -107,19 +122,23 @@ def makeConnectome(pathToOutputDir, pathToSubjectPheno):
     raw_input('Hallo...')
     plt.close()
 
+    return connectomeStack, ageArray
+
+
 def Main():
     # Define outputs
-    pathToOutputDir = '/home2/surchs/secondLine/connectomes/testing'
-    pathToSubjectPheno = '/home2/surchs/secondLine/configs/testing/sub100pheno.csv'
-
+    pathToOutputDir = '/home/sebastian/Projects/secondLine/connectome/testing'
+    pathToSubjectPheno = '/home/sebastian/Projects/secondLine/config/sub100pheno.csv'
+    pathToSubjectList = '/home/sebastian/Projects/secondLine/config/subjectList.csv'
 
     # Run the connectome generator
     connectomeStack, ageStack = makeConnectome(pathToOutputDir,
-                                               pathToSubjectPheno)
+                                               pathToSubjectPheno,
+                                               pathToSubjectList)
 
     pass
 
 
 if __name__ == '__main__':
-    makeConnectome()
+    Main()
     pass

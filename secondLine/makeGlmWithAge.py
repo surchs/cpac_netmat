@@ -247,24 +247,20 @@ def saveOutput(outputFilePath, outputMatrix):
 
 def Main():
     # Define the inputs
-    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
-    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
-    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
+    pathToConnectomeDir = '/home/sebastian/Projects/secondLine/connectome/testing'
+    pathToPhenotypicFile = '/home/sebastian/Projects/secondLine/config/sub100pheno.csv'
+    pathToSubjectList = '/home/sebastian/Projects/secondLine/config/subjectList.csv'
 
-    connectomeSuffix = '_connectome_glob_corr.txt'
-
-    debugConnStack = '/home2/surchs/secondLine/debug/ConnStack.npy'
-    debugCorrStack = '/home2/surchs/secondLine/debug/CorrStack.npy'
-    debugAgeStack = '/home2/surchs/secondLine/debug/AgeStack.npy'
+    connectomeSuffix = '.txt'
 
     runwhat = 'glm'
-    doPlot = True
+    doPlot = False
 
     # Define parameters
     alpha = 0.05
 
     # Define the outputs
-    outPath = '/home2/surchs/secondLine/correlation/abide/dos160/'
+    outPath = '/home/sebastian/Projects/secondLine/correlation/'
     correlationFileName = (runwhat + '_matrix_glob_corr.txt')
     pValueFileName = (runwhat + '_pvalue_matrix_glob_corr.txt')
     thresholdFileName = (runwhat + '_thresholded_matrix_glob_corr.txt')
@@ -283,7 +279,7 @@ def Main():
 
     # Read the phenotypic file
     pheno = loadPhenotypicFile(pathToPhenotypicFile)
-    phenoSubjects = pheno['SubID'].tolist()
+    phenoSubjects = pheno['subject'].tolist()
     phenoAges = pheno['age'].tolist()
 
     # Prepare container variables
@@ -296,7 +292,7 @@ def Main():
         subject = subject.strip()
         phenoSubject = phenoSubjects[i]
         # Workaround for dumb ass pandas
-        phenoSubject = ('00' + str(phenoSubject))
+        # phenoSubject = ('00' + str(phenoSubject))
 
         if not subject == phenoSubject:
             raise Exception('The Phenofile returned a different subject name '
