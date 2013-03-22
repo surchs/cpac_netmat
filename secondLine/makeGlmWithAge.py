@@ -4,6 +4,8 @@ Created on Feb 22, 2013
 @author: surchs
 '''
 import os
+import sys
+import time
 import numpy as np
 import pandas as pa
 import statsmodels.api as sm
@@ -77,13 +79,18 @@ def runConnections(connectomeStack, regressorStack, runwhat):
     # Prepare containers for age
     regressorVector = np.array([])
     pValueVector = np.array([])
+    flatConnections, flatSubjects = flatConnectomeStack.shape
 
     print('I got this many timepoints: ' + str(numberOfTimepoints)
           + ' and this many connections ' + str(numberOfConnections))
 
-    for connectionIndex in np.arange(numberOfConnections):
+    tookTime = np.array([])
+    for i, connectionIndex in enumerate(np.arange(numberOfConnections)):
         # Get the vector of connection values across subjects for current
         # connection
+        start = time.time()
+        percComplete = np.round(float(i + 1) / (flatConnections) * 100, 1)
+        remaining = flatConnections - (i + 1)
         connectionVector = flatConnectomeStack[connectionIndex, :]
         # What to run here:
         if runwhat == 'corr':
@@ -100,12 +107,35 @@ def runConnections(connectomeStack, regressorStack, runwhat):
             regressorVector = np.append(regressorVector, ageTValue)
             pValueVector = np.append(pValueVector, pValues)
 
+        elif runwhat == 'ttest':
+            # run the ttest model
+            tValue, pValue = runTtest(connectionVector, regressorStack)
+            regressorVector = np.append(regressorVector, tValue)
+            pValueVector = np.append(pValueVector, pValue)
+
+
         else:
             print('don\'t know what to do with ' + runwhat)
+
+        # My little time gadget...
+        stop = time.time()
+        took = stop - start
+        tookTime = np.append(tookTime, took)
+        avgTook = np.average(tookTime)
+        remTime = np.round((avgTook * remaining), 2)
+        sys.stdout.write('\r' + str(percComplete) + '% done. ' + str(remTime)
+                         + ' more seconds to go...        ')
+        sys.stdout.flush()
 
 
 
     # Done with looping
+    # Check if there are any t-values that are positive
+    posCount = np.sum(regressorVector > 0)
+    negCount = np.sum(regressorVector < 0)
+    print('Number of connections:\n'
+          + '    pos: ' + str(posCount) + '\n'
+          + '    neg: ' + str(negCount))
     # Reshape the results of the correlation back into the shape of the
     # original connectivity matrix
     regressorMatrix = np.reshape(regressorVector,
@@ -180,6 +210,18 @@ def runGLM(dataVector, predMat):
     results = model.fit()
     # make sure that age is in fact the first predictor
     ageTValue = results.tvalues[0]
+    ageSlope = results.params[0]
+
+    # Sanity check:
+    if (ageTValue < 0 and ageSlope > 0):
+        print('T-value and slope don\'t match:\n'
+              + '    tvalue: ' + str(ageTValue)
+              + '    slope: ' + str(ageSlope))
+
+    elif (ageTValue > 0 and ageSlope < 0):
+        print('T-value and. slope don\'t match:\n'
+              + '    tvalue: ' + str(ageTValue)
+              + '    slope: ' + str(ageSlope))
 
     # get p-values on absolute t-values (use this)
     pValues = st.t.sf(np.abs(ageTValue), results.df_resid)
@@ -190,6 +232,31 @@ def runGLM(dataVector, predMat):
 
     # return posAgePValue, negAgePValue
     return ageTValue, pValues
+
+
+def runTtest(connVec, labelVec):
+    '''
+    Method to compare two groups of subjects with respect to their connectivity
+    distributions
+    '''
+    # Check if only two labels
+    if not len(np.unique(labelVec)) == 2:
+        print('More than two labels here:\n'
+              + str(np.unique(labelVec)))
+    # Split up the groups
+    labelOne = np.unique(labelVec)[0]
+    labelTwo = np.unique(labelVec)[1]
+    indexOne = labelVec == labelOne
+    indexTwo = labelVec == labelTwo
+
+    # Get the values corresponding to the indices
+    valuesOne = connVec[indexOne]
+    valuesTwo = connVec[indexTwo]
+
+    # Run the t-test
+    t, p = st.ttest_ind(valuesOne, valuesTwo)
+
+    return t, p
 
 
 def prepareFDR(pValueMatrix):
@@ -240,30 +307,33 @@ def thresholdRegressorMatrix(regressorMatrix, pValueMatrix, pThresh):
 
 def saveOutput(outputFilePath, outputMatrix):
     np.savetxt(outputFilePath, outputMatrix, fmt='%.12f')
-    status = 'cool'
+    status = ('Saving to ' + outputFilePath)
 
     return status
 
 
 def Main():
     # Define the inputs
-    pathToConnectomeDir = '/home/sebastian/Projects/secondLine/connectome/testing'
-    pathToPhenotypicFile = '/home/sebastian/Projects/secondLine/config/sub100pheno.csv'
-    pathToSubjectList = '/home/sebastian/Projects/secondLine/config/subjectList.csv'
+    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
+    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
 
-    connectomeSuffix = '.txt'
+    connectomeSuffix = '_connectome_glob.txt'
 
-    runwhat = 'glm'
+    runwhat = 'ttest'
     doPlot = False
 
     # Define parameters
     alpha = 0.05
+    childmax = 12.0
+    adolescentmax = 18.0
+    doClasses = True
 
     # Define the outputs
-    outPath = '/home/sebastian/Projects/secondLine/correlation/'
-    correlationFileName = (runwhat + '_matrix_glob_corr.txt')
-    pValueFileName = (runwhat + '_pvalue_matrix_glob_corr.txt')
-    thresholdFileName = (runwhat + '_thresholded_matrix_glob_corr.txt')
+    outPath = '/home2/surchs/secondLine/correlation/abide/dos160'
+    correlationFileName = (runwhat + '_matrix_glob_a_uncorr.txt')
+    pValueFileName = (runwhat + '_pvalue_matrix_glob_a_uncorr.txt')
+    thresholdFileName = (runwhat + '_thresholded_matrix_glob_a_uncorr.txt')
 
     pathToCorrelationMatrix = os.path.join(outPath, correlationFileName)
     pathToPValueMatrix = os.path.join(outPath, pValueFileName)
@@ -286,13 +356,14 @@ def Main():
     connectomeStack = np.array([])
     ageStack = np.array([])
     meanConnStack = np.array([])
+    labelStack = np.array([], dtype=int)
 
     # Loop through the subjects
     for i, subject in enumerate(subjectList):
         subject = subject.strip()
         phenoSubject = phenoSubjects[i]
         # Workaround for dumb ass pandas
-        # phenoSubject = ('00' + str(phenoSubject))
+        phenoSubject = ('00' + str(phenoSubject))
 
         if not subject == phenoSubject:
             raise Exception('The Phenofile returned a different subject name '
@@ -307,10 +378,26 @@ def Main():
                                             (subject + connectomeSuffix))
         # Load the connectome for the subject
         connectome = loadConnectome(pathToConnectomeFile)
-        print('connectome: ' + str(connectome.shape))
         # Normalize the connectome
-        # normalizedConnectome = fisherZ(connectome)
-        normalizedConnectome = connectome
+        normalizedConnectome = fisherZ(connectome)
+        # normalizedConnectome = connectome
+
+        # Get the class assignment for the subject
+        if phenoAge <= childmax:
+            print(subject + ' --> child (' + str(phenoAge) + ')')
+            label = 0
+
+        elif phenoAge > childmax and phenoAge <= adolescentmax:
+            print(subject + ' --> adolescent (' + str(phenoAge) + ')')
+            label = 1
+            # Don't use adolescents
+            continue
+
+        else:
+            print(subject + ' --> adult (' + str(phenoAge) + ')')
+            label = 2
+
+        labelStack = np.append(labelStack, label)
 
         # Get the mean connectivity
         uniqueConnections = getUniqueMatrixElements(normalizedConnectome)
@@ -323,15 +410,80 @@ def Main():
         # Stack ages
         ageStack = stackAges(ageStack, phenoAge)
 
+    if doClasses:
+        # Force balance the classes, first get the number of classes
+        uniqueLabels = np.unique(labelStack)
+        labelString = ''
+        numLabels = len(labelStack)
+        numContainer = np.array([])
+        for name in uniqueLabels:
+            numCases = np.sum(labelStack == name)
+            ratioCases = float(numCases) / numLabels
+            labelString = (labelString + str(name) + ': ' + str(numCases)
+                           + ' (' + str(np.round(ratioCases, 3)) + ')\n')
+            numContainer = np.append(numContainer, numCases)
+
+        if len(np.unique(numContainer)) == 1:
+            # All good, just one number of classes
+            message = '\nAll classes have the same number of cases:\n'
+            print(message + labelString)
+        else:
+            # Something is off
+            message = '\nThe classes are unbalanced, forcing balance!\n'
+            print(message + labelString)
+            # Now live up to the promise
+            minCases = numContainer.min()
+            deleteDex = np.array([])
+            newString = '\nThe new distribution, balanced sample is:\n'
+
+            for name in uniqueLabels:
+                tempNdex = np.where(labelStack == name)[0]
+                # get the last number of subjects
+                popDex = tempNdex[minCases - 1:]
+                # add them to the deleteDex
+                deleteDex = np.append(deleteDex, popDex)
+
+            # Now remove the stuff from the stacks:
+            newLabelStack = np.delete(labelStack, deleteDex)
+            newAgeStack = np.delete(ageStack, deleteDex)
+            newConnectomeStack = np.delete(connectomeStack, deleteDex, axis=2)
+
+            # Check the ratio again
+            numLabels = len(newLabelStack)
+            for name in uniqueLabels:
+                numCases = np.sum(newLabelStack == name)
+                ratioCases = float(numCases) / numLabels
+                newString = (newString + str(name) + ': ' + str(numCases)
+                             + ' (' + str(np.round(ratioCases, 3)) + ')\n')
+
+            # Print the new distribution:
+            print(newString)
+            labelStack = newLabelStack
+            ageStack = newAgeStack
+            connectomeStack = newConnectomeStack
+
+            print('label: ' + str(labelStack.shape) + '\n'
+                  + 'age: ' + str(ageStack.shape) + '\n'
+                  + 'connectome: ' + str(connectomeStack.shape))
+
+    # Prepare vector of ones for intercept
+    ones = np.ones_like(ageStack)
 
     # Make the regressor matrix
     if runwhat == 'glm':
-        # regressorStack = np.concatenate((ageStack[..., None],
-        #                                  meanConnStack[..., None]),
-        #                                 axis=1)
+        '''
+        regressorStack = np.concatenate((ageStack[..., None],
+                                         ones[..., None]),
+                                        axis=1)
+        '''
         regressorStack = ageStack
+
     elif runwhat == 'corr':
         regressorStack = ageStack
+
+    elif runwhat == 'ttest':
+        # run the ttest
+        regressorStack = labelStack
 
     else:
         print('You don\'t know what you are doing...')
@@ -372,19 +524,28 @@ def Main():
         fitStack = np.concatenate((ageStack[..., None],
                                    np.ones_like(ageStack)[..., None]),
                                   axis=1)
+
         results = fitRobust(connVec, fitStack)
         slope = results.params[0]
         intercept = results.params[1]
+
+        glmFit = fitGLM(connVec, ageStack)
+        glmSlope = np.round(glmFit.params[0], 2)
+        glmT = glmFit.tvalues[0]
 
         xnew = np.arange(ageStack.min() - 1, ageStack.max() + 1, 0.1)
         meanFit = slope * xnew + intercept
         showSlope = np.round(slope, 2)
 
+        glmShow = glmSlope * xnew
         plt.plot(ageStack, connVec, '.k')
         plt.plot(xnew, meanFit, 'r', label='robust fit ' + str(showSlope))
+        plt.plot(xnew, glmShow, 'g', label=('glm fit ' + str(glmT) + ' '
+                                            + str(glmSlope)))
         plt.xlabel('age')
         plt.ylabel('connectivity')
         plt.title('connectivity across age')
+        plt.legend()
         plt.show()
         raw_input('Enter to continue...')
         plt.close()
@@ -441,12 +602,11 @@ def Main():
     # save the outputs
     # status = 'debug'
     status = saveOutput(pathToCorrelationMatrix, regressorMatrix)
-    print('correlation matrix says ' + status)
+    print('correlation matrix ' + status)
     status = saveOutput(pathToPValueMatrix, pValueMatrix)
-    print('p value matrix says ' + status)
+    print('p value matrix ' + status)
     status = saveOutput(pathToThresholdedMatrix, thresholdedRegressorMatrix)
-    print('thresholded matrix says ' + status)
-
+    print('thresholded matrix ' + status)
 
 
 if __name__ == '__main__':

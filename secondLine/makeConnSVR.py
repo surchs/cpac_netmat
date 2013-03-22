@@ -5,6 +5,7 @@ Created on Feb 22, 2013
 '''
 import os
 import gzip
+import time
 import cPickle
 import numpy as np
 import pandas as pa
@@ -193,17 +194,18 @@ def testModel(model, testFeature):
     return predictedAge
 
 
-def mainSVR(feature, age, crossVal, kernel, nCors):
+def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst):
     '''
     short method to handle all the steps in the SVR
     '''
     crossValDict = makeFolds(feature, age, crossVal)
     # outputDict = {}
+    trainDict = {}
     testAgeVec = np.array([])
     predAgeVec = np.array([])
-    runParamEst = True
 
     for i, run in enumerate(crossValDict.keys()):
+        start = time.time()
         # Alert on running
         print('Running fold ' + str(i))
         # Get the training and test tuples
@@ -216,17 +218,33 @@ def mainSVR(feature, age, crossVal, kernel, nCors):
         if runParamEst:
             bestC, bestE = findParameters(trainFeature, trainAge, kernel, nCors)
         else:
-            bestC = 1.0
-            bestE = 0.1
+            bestC = 20.0
+            bestE = 0.001
+
+        paramStop = time.time()
 
         # Train model on train data
+        modelstart = time.time()
         model = trainModel(trainFeature, trainAge, kernel, bestC, bestE)
+        modelstop = time.time()
         # Test model on test data
         predictedAge = testModel(model, testFeature)
+        # Test model on train data - for sanity check
+        trainPredict = testModel(model, trainFeature)
+        trainOut = np.concatenate((trainAge[..., None],
+                                   trainPredict[..., None]),
+                                  axis=1)
+        trainDict[run] = trainOut
 
         # Store predicted and true age in the output directory
         testAgeVec = np.append(testAgeVec, testAge)
         predAgeVec = np.append(predAgeVec, predictedAge)
+
+        # Take time
+        stop = time.time()
+        elapsedParam = np.round(paramStop - start, 2)
+        elapsedModel = np.round(modelstop - modelstart, 2)
+        elapsedFull = np.round(stop - start, 2)
 
         # outTuple = (testAge, predictedAge)
         # outputDict[run] = outTuple
@@ -239,14 +257,17 @@ def mainSVR(feature, age, crossVal, kernel, nCors):
                   + '    true: ' + str(testAgeVec.shape) + '\n'
                   + '    pred: ' + str(predAgeVec.shape))
         print('    bestC: ' + str(bestC) + '\n'
-              + '    bestE: ' + str(bestE))
+              + '    bestE: ' + str(bestE) + '\n'
+              + 'parameter selection took: ' + str(elapsedParam) + ' s\n'
+              + 'model fitting took: ' + str(elapsedModel) + ' s\n'
+              + 'in total took: ' + str(elapsedFull) + ' s')
 
     # Done, stack the output together (true age first, then predicted)
     outputMatrix = np.concatenate((testAgeVec[..., None],
                                    predAgeVec[..., None]),
                                   axis=1)
 
-    return outputMatrix
+    return outputMatrix, trainDict
     # Done, return the output dictionary
     # return outputDict
 
@@ -297,6 +318,16 @@ def dualPlot(resultWithin, resultBetween, title):
     BglmSlope = BglmResult.params[0]
     BglmIntercept = BglmResult.params[1]
 
+    WrobustT = WrobustResult.tvalues[0]
+    WrobustP = st.t.sf(np.abs(WrobustT), WrobustResult.df_resid)
+    WglmT = WglmResult.tvalues[0]
+    WglmP = st.t.sf(np.abs(WglmT), WglmResult.df_resid)
+
+    BrobustT = BrobustResult.tvalues[0]
+    BrobustP = st.t.sf(np.abs(BrobustT), BrobustResult.df_resid)
+    BglmT = BglmResult.tvalues[0]
+    BglmP = st.t.sf(np.abs(BglmT), BglmResult.df_resid)
+
     xnew = np.arange(refAge.min() - 1, refAge.max() + 1, 0.1)
     WrobustFit = WrobustSlope * xnew + WrobustIntercept
     WglmFit = WglmSlope * xnew + WglmIntercept
@@ -310,34 +341,46 @@ def dualPlot(resultWithin, resultBetween, title):
     wFit = np.polyval(wP, xnew)
     bFit = np.polyval(bP, xnew)
 
-
-    within.set_title('within network')
-    between.set_title('between network')
-
-    # withinCorr, withinP = st.pearsonr(wTrue, wPred)
+    withinCorr, withinP = st.pearsonr(wTrue, wPred)
     within.plot(wTrue, wPred, 'k.')
-    within.plot(xnew, WrobustFit, 'r', label='robust ' + str(np.round(WrobustSlope, 2)))
-    within.plot(xnew, WglmFit, 'b', label='glm ' + str(np.round(WglmSlope, 2)))
+    within.plot(xnew, WrobustFit, 'r', label=('robust '
+                                              + str(np.round(WrobustSlope, 2))
+                                              + ' ' + str(np.round(WrobustP, 3))))
+    within.plot(xnew, WglmFit, 'b', label=('glm '
+                                           + str(np.round(WglmSlope, 2))
+                                           + ' ' + str(np.round(WglmP, 3))))
     within.plot(wTrue, wTrue, 'g', label='true')
 
     within.set_xlabel('true age')
     within.set_ylabel('predicted age')
     within.legend()
 
-    # betweenCorr, betweenP = st.pearsonr(bTrue, bPred)
+    betweenCorr, betweenP = st.pearsonr(bTrue, bPred)
     between.plot(bTrue, bPred, 'k.')
-    between.plot(xnew, BrobustFit, 'r', label='robust ' + str(np.round(BrobustSlope, 2)))
-    between.plot(xnew, BglmFit, 'b', label='glm ' + str(np.round(BglmSlope, 2)))
+    between.plot(xnew, BrobustFit, 'r', label=('robust '
+                                               + str(np.round(BrobustSlope, 2))
+                                               + ' ' + str(np.round(BrobustP, 3))))
+    between.plot(xnew, BglmFit, 'b', label=('glm '
+                                            + str(np.round(BglmSlope, 2))
+                                            + ' ' + str(np.round(BglmP, 3))))
     between.plot(bTrue, bTrue, 'g', label='true')
     between.set_xlabel('true age')
     between.set_ylabel('predicted age')
     between.legend()
 
+    within.set_title('within ('
+                     + str(np.round(withinCorr, 2)) + ', '
+                     + str(np.round(withinP, 3)) + ')')
+    between.set_title('between ('
+                      + str(np.round(betweenCorr, 2)) + ', '
+                      + str(np.round(betweenP, 3)) + ')')
+
     fig.suptitle(title)
     plt.show()
-    raw_input("Press Enter to continue...")
+    userIn = raw_input("Press Enter or break...\n")
     plt.close()
 
+    return userIn
 
 def fitRobust(dataVec, predMat):
     '''
@@ -373,7 +416,13 @@ def singlePlot(result, title):
     glmSlope = glmResult.params[0]
     glmIntercept = glmResult.params[1]
 
+    robustT = robustResult.tvalues[0]
+    robustP = st.t.sf(np.abs(robustT), robustResult.df_resid)
+    glmT = glmResult.tvalues[0]
+    glmP = st.t.sf(np.abs(glmT), glmResult.df_resid)
+
     # prepare
+    corr, p = st.pearsonr(true, pred)
     xnew = np.arange(true.min() - 1, true.max() + 1, 0.1)
     robustFit = robustSlope * xnew + robustIntercept
     glmFit = glmSlope * xnew + glmIntercept
@@ -381,13 +430,22 @@ def singlePlot(result, title):
     # Plot shit
     plt.plot(true, pred, 'k.')
     plt.plot(true, true, 'g', label='perfect')
-    plt.plot(xnew, robustFit, 'r', label='robust')
-    plt.plot(xnew, glmFit, 'b', label='glm')
+
+    plt.plot(xnew, robustFit, 'r', label=('robust '
+                                          + str(np.round(robustSlope, 2))
+                                          + ' ' + str(np.round(robustP, 3))))
+    plt.plot(xnew, glmFit, 'b', label=('glm '
+                                       + str(np.round(glmSlope, 2))
+                                       + ' ' + str(np.round(glmP, 3))))
     plt.legend()
-    plt.title(title)
+    plt.title(title + ' ('
+              + str(np.round(corr, 2)) + ', '
+              + str(np.round(p, 3)) + ')')
     plt.show()
-    raw_input("Press Enter to continue...")
+    userIn = raw_input("Press Enter or break...\n")
     plt.close()
+
+    return userIn
 
 
 def networkPlot(networkResults):
@@ -398,6 +456,26 @@ def networkPlot(networkResults):
         print('Plotting network ' + network + ' now.')
         (withinResult, betweenResult) = networkResults[network]
         dualPlot(withinResult, betweenResult, network)
+
+
+def trainPlot(withinDict, betweenDict=None):
+    '''
+    Method to visualize the network level results on training data (aka for 
+    each cross validation loop)
+    '''
+    for run in withinDict.keys():
+        print('Plotting fold ' + run + ' now.')
+        withinResult = withinDict[run]
+        # Plot the stuff
+        if betweenDict:
+            betweenResult = betweenDict[run]
+            userIn = dualPlot(withinResult, betweenResult, run)
+        else:
+            userIn = singlePlot(withinResult, run)
+
+        if userIn == 'break':
+            print('breaking')
+            break
 
 
 def saveOutput(outputFilePath, output):
@@ -411,22 +489,49 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
-    pathToConnectomeDir = '/home/sebastian/Projects/secondLine/connectome/testing'
-    pathToPhenotypicFile = '/home/sebastian/Projects/secondLine/config/sub100pheno.csv'
-    pathToSubjectList = '/home/sebastian/Projects/secondLine/config/subjectList.csv'
+    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
+    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
 
-    pathToNetworkNodes = '/home/sebastian/Projects/secondLine/masks/networkNodes_dosenbach.dict'
-    pathToRoiMask = '/home/sebastian/Projects/secondLine/masks/dos160_abide_246_3mm.nii.gz'
+    pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
+    pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
 
-    connectomeSuffix = '_noisy.txt'
-
-    pathToOutputFile = '/home/sebastian/Projects/secondLine/correlation/corr_connectivity_noisy.dict'
+    connectomeSuffix = '_connectome_glob_corr.txt'
 
     # Define parameters
+    doCV = 'kfold'
     kfold = 10
-    nCors = 1
-    kernel = 'linear'
-    takeFeat = 'mean'
+    nCors = 15
+    kernel = 'rbf'
+    runParamEst = True
+    takeFeat = 'brain'
+    doPlot = True
+    which = 'abide'
+
+    stratStr = (doCV
+                + '_' + str(kfold)
+                + '_' + kernel
+                + '_' + str(runParamEst)
+                + '_' + takeFeat
+                + '_' + os.path.splitext(connectomeSuffix)[0])
+
+    print(stratStr)
+
+    pathToPredictionOutputFile = '/home2/surchs/secondLine/SVM/abide/dos160/emp_' + stratStr + '_SVR.pred'
+    pathToTrainOutputFile = '/home2/surchs/secondLine/SVM/abide/dos160/emp_' + stratStr + '_SVR.train'
+
+    # Check the fucking paths
+    if  (not which in pathToConnectomeDir or
+         not which in  pathToPhenotypicFile or
+         not which in pathToSubjectList or
+         not which in pathToRoiMask or
+         not which in pathToPredictionOutputFile or
+         not which in pathToTrainOutputFile):
+        message = 'Your paths are bad!'
+        raise Exception(message)
+    else:
+        print('Your paths are ok.')
+
 
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
@@ -449,28 +554,34 @@ def Main():
     ageStack = np.array([])
     meanConnStack = np.array([])
     networkResults = {}
+    networkTrainResults = {}
     withinFeature = np.array([])
     betweenFeature = np.array([])
 
-    # Prepare the crossvalidation object
-    crossVal = cv.KFold(len(phenoSubjects),
-                        kfold,
-                        shuffle=True)
-    nFolds = crossVal.k
+    if doCV == 'loocv':
+        crossVal = cv.LeaveOneOut(len(phenoSubjects))
+        nFolds = crossVal.n
 
-    # quick sanity check
-    if not nFolds == kfold:
-        print('\nThe intended and actual crossvalidation is different:\n'
-              + '    kfold: ' + str(kfold) + '\n'
-              + '    nFold: ' + str(nFolds) + '\n'
-              + 'with ' + str(len(phenoSubjects)) + ' subjects\n')
+    elif doCV == 'kfold':
+        # Prepare the crossvalidation object
+        crossVal = cv.KFold(len(phenoSubjects),
+                            kfold,
+                            shuffle=True)
+        nFolds = crossVal.k
+
+        # quick sanity check
+        if not nFolds == kfold:
+            print('\nThe intended and actual crossvalidation is different:\n'
+                  + '    kfold: ' + str(kfold) + '\n'
+                  + '    nFold: ' + str(nFolds) + '\n'
+                  + 'with ' + str(len(phenoSubjects)) + ' subjects\n')
 
     # Loop through the subjects
     for i, subject in enumerate(subjectList):
         subject = subject.strip()
         phenoSubject = phenoSubjects[i]
         # Workaround for dumb ass pandas
-        # phenoSubject = ('00' + str(phenoSubject))
+        phenoSubject = ('00' + str(phenoSubject))
 
         if not subject == phenoSubject:
             raise Exception('The Phenofile returned a different subject name '
@@ -559,24 +670,36 @@ def Main():
 
         if takeFeat == 'conn':
             # Run SVR
-            print('\nRunning within ' + network + ' mean connectivity SVR ('
+            print('\nRunning within ' + network + ' connectivity SVR ('
                   + str(i) + '/' + str(len(networkNodes.keys())) + ')')
-            withinResult = mainSVR(withinFeature, ageStack, crossVal, kernel,
-                                   nCors)
-            print('\nRunning between ' + network + ' mean connectivity SVR ('
+            withinResult, withinTrainDict = mainSVR(withinFeature,
+                                                    ageStack,
+                                                    crossVal,
+                                                    kernel,
+                                                    nCors,
+                                                    runParamEst)
+            print('\nRunning between ' + network + ' connectivity SVR ('
                   + str(i) + '/' + str(len(networkNodes.keys())) + ')')
-            betweenResult = mainSVR(betweenFeature, ageStack, crossVal, kernel,
-                                    nCors)
+            betweenResult, betweenTrainDict = mainSVR(betweenFeature,
+                                                      ageStack,
+                                                      crossVal,
+                                                      kernel,
+                                                      nCors,
+                                                      runParamEst)
 
             # Store the output in the output Dictionary for networks
             result = (withinResult, betweenResult)
             networkResults[network] = result
+            trainResult = (withinTrainDict, betweenTrainDict)
+            networkTrainResults[network] = trainResult
 
-    if not takeFeat == 'conn' and not takeFeat == 'brain':
+    if takeFeat == 'mean':
+        print('Doing the mean!')
         # Check if the features are ok
         print('Age: ' + str(ageStack.shape))
         print('Within: ' + str(withinFeature.shape))
         print('Between: ' + str(betweenFeature.shape))
+        print(stratStr)
 
         if np.isnan(withinFeature).any():
             howMany = len(np.where(np.isnan(withinFeature))[0])
@@ -591,42 +714,77 @@ def Main():
             raise Exception(message)
 
         # do the real thing
-        withinResult = mainSVR(withinFeature, ageStack, crossVal, kernel, nCors)
-        betweenResult = mainSVR(betweenFeature, ageStack, crossVal, kernel, nCors)
-        print('Plotting what we actually wanted...')
-        # Plot mean connectivity across age
-        plt.plot(ageStack, withinFeature, 'g.')
-        plt.title('within mean connectivity')
-        plt.show()
-        raw_input('hallo...')
-        plt.close()
+        withinResult, withinTrainDict = mainSVR(withinFeature,
+                                                ageStack,
+                                                crossVal,
+                                                kernel,
+                                                nCors,
+                                                runParamEst)
+        betweenResult, betweenTrainDict = mainSVR(betweenFeature,
+                                                  ageStack,
+                                                  crossVal,
+                                                  kernel,
+                                                  nCors,
+                                                  runParamEst)
+        if doPlot:
+            print('Plotting what we actually wanted...\n'
+                  + stratStr)
+            # Plot mean connectivity across age
+            plt.plot(ageStack, withinFeature, 'g.')
+            plt.title('within mean connectivity')
+            plt.show()
+            raw_input('hallo...')
+            plt.close()
 
-        plt.plot(ageStack, betweenFeature, 'g.')
-        plt.title('between mean connectivity')
-        plt.show()
-        raw_input('hallo...')
-        plt.close()
+            plt.plot(ageStack, betweenFeature, 'g.')
+            plt.title('between mean connectivity')
+            plt.show()
+            raw_input('hallo...')
+            plt.close()
 
-        dualPlot(withinResult, betweenResult, 'within and between connectivit'
-                 + ' predicting age')
+            dualPlot(withinResult, betweenResult, 'within and between connectivit'
+                     + ' predicting age')
+            trainPlot(withinTrainDict, betweenTrainDict)
+
+        testSaveTuple = (withinResult, betweenResult)
+        trainSaveTuple = (withinTrainDict, betweenTrainDict)
+        status = saveOutput(pathToPredictionOutputFile, testSaveTuple)
+        status = saveOutput(pathToTrainOutputFile, trainSaveTuple)
 
     if takeFeat == 'brain':
-        print('Lets do the brain!')
+        print('Lets do the brain!\n'
+              + stratStr)
         mask = np.ones_like(connectomeStack[..., 0])
         mask = np.tril(mask, -1)
         feature = connectomeStack[mask == 1].T
-        result = mainSVR(feature, ageStack, crossVal, kernel, nCors)
-        singlePlot(result, 'whole brain SVR plot')
-        status = saveOutput(pathToOutputFile, result)
+        result, trainDict = mainSVR(feature,
+                                    ageStack,
+                                    crossVal,
+                                    kernel,
+                                    nCors,
+                                    runParamEst)
+
+        if doPlot:
+            singlePlot(result, 'whole brain SVR plot')
+            trainPlot(trainDict)
+        status = saveOutput(pathToPredictionOutputFile, result)
+        status = saveOutput(pathToTrainOutputFile, trainDict)
         print(status)
 
+    elif takeFeat == 'conn':
 
-    # Save the networkResults
-    # status = saveOutput(pathToOutputFile, networkResults)
-    # print(status)
+        status = saveOutput(pathToPredictionOutputFile, networkResults)
+        status = saveOutput(pathToTrainOutputFile, networkTrainResults)
+        print(status)
 
-    # Done with running analysis. Plotting by network now
-    networkPlot(networkResults)
+        if doPlot:
+            # Done with running analysis. Plotting by network now
+            networkPlot(networkResults)
+            for network in networkTrainResults:
+                print('Plotting training on ' + network + '\n'
+                      + stratStr)
+                (withinTrainDict, betweenTrainDict) = networkTrainResults[network]
+                trainPlot(withinTrainDict, betweenTrainDict)
 
 
 if __name__ == '__main__':
