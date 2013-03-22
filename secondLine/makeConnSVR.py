@@ -310,8 +310,48 @@ def rfecvFeature(trainFeature, trainAge, kernel='linear'):
     return boolIndex
 
 
+def computeFDR(pValueVector, alpha):
+    # This returns a new thresholded p value
+    # Sort the p values by size, beginning with the smallest
+    sortedP = np.sort(pValueVector)
+    # Reverse sort the p-values, so the first one is the biggest
+    reverseP = sortedP[::-1]
+    # Get the number of p-values
+    numP = float(len(reverseP))
+    # Create a vector designating the position of the reverse sorted p-values
+    # in the sorted p vector (e.g. the first reverse sorted p-value will have
+    # the index numP because it would be the last entry in the sorted vector)
+    indexP = np.arange(numP, 0, -1)
+    # Create test vector of (index of p value / number of p values) * alpha
+    test = indexP / numP * alpha
+    # Check where p-value <= test
+    testIndex = np.where(reverseP <= test)
+    if testIndex[0].size == 0:
+        print('None of you p values pass FDR correction')
+        pFDR = 0
+    else:
+        # Get the first p value that passes the criterion
+        pFDR = reverseP[np.min(testIndex)]
+        print('FDR corrected p value for alpha of ' + str(alpha) + ' is '
+              + str(pFDR)
+              + '\n' + str(testIndex[0].size) + ' out of '
+              + str(int(numP)) + ' p-values pass this threshold')
 
-def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200):
+    return pFDR
+
+
+def threshold(dataVector, thresh):
+    '''
+    Module to get a boolean vector of values in the data-vetor that are less
+    than the threshold
+    '''
+    boolDex = dataVector < thresh
+
+    return boolDex
+
+
+def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
+                 alpha=0.05):
     '''
     Method to do feature selection
     strategies are:
@@ -326,12 +366,27 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200):
 
     if str(strat) == 'corr':
         rVector, pVector = corrFeature(trainFeature, trainAge)
+        # Get the FDR p-cutoff
+        pThresh = computeFDR(pVector, alpha)
+        pIndex = threshold(pVector, pThresh)
+        # turn the index into a feature index
+        featIndex = pIndex
 
     elif str(strat) == 'glm':
         tVector, pVector = glmFeature(trainFeature, trainAge)
+        # Get the FDR p-cutoff
+        pThresh = computeFDR(pVector, alpha)
+        pIndex = threshold(pVector, pThresh)
+        # turn the index into a feature index
+        featIndex = pIndex
 
     elif str(strat) == 'ttest':
         tVector, pVector = ttestFeature(trainFeature, trainAge)
+        # Get the FDR p-cutoff
+        pThresh = computeFDR(pVector, alpha)
+        pIndex = threshold(pVector, pThresh)
+        # turn the index into a feature index
+        featIndex = pIndex
 
     elif str(strat) == 'rfe':
         featIndex = rfeFeature(trainFeature, trainAge, numFeat, kernel=kernel)
@@ -339,17 +394,31 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200):
     elif str(strat) == 'rfecv':
         if numberOfFeatures > maxFeatRFE:
             # First bring the number of features down
-            tempIndex = rfeFeature(trainFeature, trainAge,
-                                   maxFeatRFE, kernel=kernel)
+            firstIndex = rfeFeature(trainFeature, trainAge,
+                                    maxFeatRFE, kernel=kernel)
             # Cut the features down
-            rfeFeature = trainFeature[:, tempIndex]
-            featIndex = rfecvFeature(rfeFeature, trainAge, kernel='linear')
+            rfeFeature = trainFeature[:, firstIndex]
+            secondIndex = rfecvFeature(rfeFeature, trainAge, kernel='linear')
+            # Now we have to get the second index to the length of the first
+            tempIndex = np.zeros_like(firstIndex, dtype=int)
+            tempIndex[firstIndex[secondIndex]] = 1
+            # And now turn it into a boolean index
+            featIndex = tempIndex == 1
         else:
             featIndex = rfecvFeature(trainFeature, trainAge, kernel='linear')
 
     else:
-        print('Your strategy (' + str(strat) + ') is either not implemented or'
-              + ' None.')
+        message = ('Your strategy (' + str(strat)
+                + ') is either not implemented or None.')
+        raise Exception(message)
+
+    # Check if anything comes through at all
+    remainingFeatures = np.sum(featIndex)
+    if remainingFeatures == 0:
+        message('All features have been removed! This is uncool.')
+        raise Exception(message)
+
+    return featIndex
 
 
 def findParameters(trainFeature, trainAge, kernel, nCors):
