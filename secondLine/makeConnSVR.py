@@ -16,6 +16,9 @@ from scipy import stats as st
 import sklearn.grid_search as gs
 from matplotlib import pyplot as plt
 import sklearn.cross_validation as cv
+import sklearn.feature_selection as fs
+from sklearn.metrics import mean_squared_error
+
 
 def loadPhenotypicFile(pathToPhenotypicFile):
     pheno = pa.read_csv(pathToPhenotypicFile)
@@ -84,6 +87,61 @@ def fisherZ(connectome):
     return normalizedConnectome
 
 
+def runGLM(dataVector, predMat):
+    # run a glm with only one factor
+    model = sm.OLS(dataVector, predMat)
+    results = model.fit()
+    # make sure that age is in fact the first predictor
+    ageTValue = results.tvalues[0]
+    ageSlope = results.params[0]
+
+    # Sanity check:
+    if (ageTValue < 0 and ageSlope > 0):
+        print('T-value and slope don\'t match:\n'
+              + '    tvalue: ' + str(ageTValue)
+              + '    slope: ' + str(ageSlope))
+
+    elif (ageTValue > 0 and ageSlope < 0):
+        print('T-value and. slope don\'t match:\n'
+              + '    tvalue: ' + str(ageTValue)
+              + '    slope: ' + str(ageSlope))
+
+    # get p-values on absolute t-values (use this)
+    pValues = st.t.sf(np.abs(ageTValue), results.df_resid)
+
+    # Divide p-values up into positive and negative (not now)
+    posAgePValue = st.t.sf(ageTValue, results.df_resid)
+    negAgePValue = st.t.sf(ageTValue * -1, results.df_resid)
+
+    # return posAgePValue, negAgePValue
+    return ageTValue, pValues
+
+
+def runTtest(connVec, labelVec):
+    '''
+    Method to compare two groups of subjects with respect to their connectivity
+    distributions
+    '''
+    # Check if only two labels
+    if not len(np.unique(labelVec)) == 2:
+        print('More than two labels here:\n'
+              + str(np.unique(labelVec)))
+    # Split up the groups
+    labelOne = np.unique(labelVec)[0]
+    labelTwo = np.unique(labelVec)[1]
+    indexOne = labelVec == labelOne
+    indexTwo = labelVec == labelTwo
+
+    # Get the values corresponding to the indices
+    valuesOne = connVec[indexOne]
+    valuesTwo = connVec[indexTwo]
+
+    # Run the t-test
+    t, p = st.ttest_ind(valuesOne, valuesTwo)
+
+    return t, p
+
+
 def makeFolds(feature, age, crossVal):
     '''
     generate crossvalidations based on the validation object
@@ -118,6 +176,180 @@ def makeFolds(feature, age, crossVal):
         run += 1
 
     return crossValDict
+
+
+def corrFeature(trainFeature, trainAge):
+    '''
+    Method to select features that are significantly correlated with age
+    '''
+    # Get the number of features
+    numberOfFeatures = trainFeature.shape[1]
+
+    rVector = np.array([])
+    pVector = np.array([])
+
+    # Iterate over the elements in the stack and correlate them to the age
+    # stack one by one
+    for connectionIndex in np.arange(numberOfFeatures):
+        # Get the vector of connection values across subjects for current
+        # connection
+        connectionVector = trainFeature[:, connectionIndex]
+        # Correlate the vector to age
+        r, p = st.pearsonr(connectionVector, trainAge)
+        # Append correlation and p values to their respective container
+        # variables
+        rVector = np.append(rVector, r)
+        pVector = np.append(pVector, p)
+
+    # Return the pearson's r and the corresponding p value as a vector
+    return rVector, pVector
+
+
+def glmFeature(trainFeature, trainAge):
+    '''
+    Method to select the best feature from a GLM
+    '''
+    # Get the number of features
+    numberOfFeatures = trainFeature.shape[1]
+
+    tVector = np.array([])
+    pVector = np.array([])
+
+    # Iterate over the elements in the stack and correlate them to the age
+    # stack one by one
+    for connectionIndex in np.arange(numberOfFeatures):
+        # Get the vector of connection values across subjects for current
+        # connection
+        connectionVector = trainFeature[:, connectionIndex]
+        # Correlate the vector to age
+        t, p = runGLM(connectionVector, trainAge)
+        # Append correlation and p values to their respective container
+        # variables
+        tVector = np.append(tVector, t)
+        pVector = np.append(pVector, p)
+
+    # Return the pearson's r and the corresponding p value as a vector
+    return tVector, pVector
+
+
+def ttestFeature(trainFeature, trainLabel):
+    '''
+    Method to find features that significantly differentiate between two groups
+    '''
+    # Get the number of features
+    numberOfFeatures = trainFeature.shape[1]
+
+    tVector = np.array([])
+    pVector = np.array([])
+
+    # Iterate over the elements in the stack and correlate them to the age
+    # stack one by one
+    for connectionIndex in np.arange(numberOfFeatures):
+        # Get the vector of connection values across subjects for current
+        # connection
+        connectionVector = trainFeature[:, connectionIndex]
+        # Correlate the vector to age
+        t, p = runTtest(connectionVector, trainLabel)
+        # Append correlation and p values to their respective container
+        # variables
+        tVector = np.append(tVector, t)
+        pVector = np.append(pVector, p)
+
+    # Return the pearson's r and the corresponding p value as a vector
+    return tVector, pVector
+
+
+def rfeFeature(trainFeature, trainAge, maxFeat, kernel='linear'):
+    '''
+    Method to get features from recursive feature eleminiation
+    '''
+    # Get the number of features
+    numberOfFeatures = trainFeature.shape[1]
+    # get the estimator
+    svrEstimator = svm.SVR(kernel=kernel)
+
+    # just get the number of features and go home
+    rfeObject = fs.RFE(estimator=svrEstimator,
+                       n_features_to_select=maxFeat,
+                       step=0.1)
+    rfeObject.fit(trainFeature, trainAge)
+    # temporary index of selected features
+    tempRfeIndex = rfeObject.support_
+    # rfe index
+    rfeIndex = np.where(tempRfeIndex)[0]
+
+    # prepare a binary and a boolean index
+    featIndex = np.zeros(numberOfFeatures, dtype=int)
+    featIndex[rfeIndex] = 1
+    boolIndex = featIndex == 1
+
+    return boolIndex
+
+
+def rfecvFeature(trainFeature, trainAge, kernel='linear'):
+    '''
+    Method to get features using rfe with crossvalidation
+    '''
+    # Get the number of features
+    numberOfFeatures = trainFeature.shape[1]
+    # get the estimator
+    svrEstimator = svm.SVR(kernel=kernel)
+    # Get the model
+    rfecvObject = fs.RFECV(estimator=svrEstimator,
+                           step=0.01,
+                           cv=2,
+                           loss_func=mean_squared_error)
+    rfecvObject.fit(trainFeature, trainAge)
+    tempRfeCvIndex = rfecvObject.support_
+    rfeCvIndex = np.where(tempRfeCvIndex)[0]
+    # prepare a binary and a boolean index
+    featIndex = np.zeros(numberOfFeatures, dtype=int)
+    featIndex[rfeCvIndex] = 1
+    boolIndex = featIndex == 1
+
+    return boolIndex
+
+
+
+def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200):
+    '''
+    Method to do feature selection
+    strategies are:
+        'corr'    - correlation, passing FDR
+        'glm'     - glm with age (and intercept), passing FDR
+        'ttest'   - t-test between two groups (trainAge will be label then)
+        'rfe'     - recursive feature eleminiation on the kernel model
+        'rfecv'   - rfe with cross validation, have to define a max feature
+    '''
+    numberOfFeatures = trainFeature.shape[1]
+    maxFeatRFE = 3000
+
+    if str(strat) == 'corr':
+        rVector, pVector = corrFeature(trainFeature, trainAge)
+
+    elif str(strat) == 'glm':
+        tVector, pVector = glmFeature(trainFeature, trainAge)
+
+    elif str(strat) == 'ttest':
+        tVector, pVector = ttestFeature(trainFeature, trainAge)
+
+    elif str(strat) == 'rfe':
+        featIndex = rfeFeature(trainFeature, trainAge, numFeat, kernel=kernel)
+
+    elif str(strat) == 'rfecv':
+        if numberOfFeatures > maxFeatRFE:
+            # First bring the number of features down
+            tempIndex = rfeFeature(trainFeature, trainAge,
+                                   maxFeatRFE, kernel=kernel)
+            # Cut the features down
+            rfeFeature = trainFeature[:, tempIndex]
+            featIndex = rfecvFeature(rfeFeature, trainAge, kernel='linear')
+        else:
+            featIndex = rfecvFeature(trainFeature, trainAge, kernel='linear')
+
+    else:
+        print('Your strategy (' + str(strat) + ') is either not implemented or'
+              + ' None.')
 
 
 def findParameters(trainFeature, trainAge, kernel, nCors):
