@@ -525,8 +525,9 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
 
     for i, run in enumerate(crossValDict.keys()):
         start = time.time()
-        # Alert on running
-        print('Running fold ' + str(i))
+        if not doPermute:
+            # Alert on running
+            print('Running fold ' + str(i))
         # Get the training and test tuples
         trainTuple, testTuple = crossValDict[run]
         # unpack tuples
@@ -549,7 +550,6 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
         selectTestFeat = testFeature[:, featIndex]
 
         # Get the best parameters for this training set
-        print('paramon')
         if runParamEst:
             bestC, bestE = findParameters(selectTrainFeat, trainAge,
                                           kernel, nCors)
@@ -558,7 +558,6 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
             bestE = 0.001
 
         paramStop = time.time()
-        print('paramoff')
 
         # Train model on train data
         modelstart = time.time()
@@ -590,15 +589,17 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
                   + '    true: ' + str(testAgeVec.shape) + '\n'
                   + '    pred: ' + str(predAgeVec.shape))
         else:
-            print('Run ' + str(i) + ':\n'
-                  + '    true: ' + str(testAgeVec.shape) + '\n'
-                  + '    pred: ' + str(predAgeVec.shape))
-        print('    bestC: ' + str(bestC) + '\n'
-              + '    bestE: ' + str(bestE) + '\n'
-              + '    feat: ' + str(keptFeat) + ' / ' + str(numberFeat) + '\n'
-              + 'parameter selection took: ' + str(elapsedParam) + ' s\n'
-              + 'model fitting took: ' + str(elapsedModel) + ' s\n'
-              + 'in total took: ' + str(elapsedFull) + ' s')
+            if not doPermute:
+                print('Run ' + str(i) + ':\n'
+                      + '    true: ' + str(testAgeVec.shape) + '\n'
+                      + '    pred: ' + str(predAgeVec.shape))
+        if not doPermute:
+            print('    bestC: ' + str(bestC) + '\n'
+                  + '    bestE: ' + str(bestE) + '\n'
+                  + '    feat: ' + str(keptFeat) + ' / ' + str(numberFeat) + '\n'
+                  + 'parameter selection took: ' + str(elapsedParam) + ' s\n'
+                  + 'model fitting took: ' + str(elapsedModel) + ' s\n'
+                  + 'in total took: ' + str(elapsedFull) + ' s')
 
     # Done, stack the output together (true age first, then predicted)
     outputMatrix = np.concatenate((testAgeVec[..., None],
@@ -831,7 +832,8 @@ def runMean(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
     betweenFeature = np.array([])
 
     for i, network in enumerate(networkNodes.keys()):
-        print('plotting network ' + network)
+        if not doPermute:
+            print('plotting network ' + network)
         netNodes = networkNodes[network]
         # get boolean index of within network nodes
         networkIndex = np.in1d(uniqueRoi, netNodes)
@@ -874,12 +876,13 @@ def runMean(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
                                              meanBetween[..., None]),
                                             axis=1)
 
-    print('Doing the mean!')
-    # Check if the features are ok
-    print('Age: ' + str(ageStack.shape))
-    print('Within: ' + str(withinFeature.shape))
-    print('Between: ' + str(betweenFeature.shape))
-    print(stratStr)
+    if not doPermute:
+        print('Doing the mean!')
+        # Check if the features are ok
+        print('Age: ' + str(ageStack.shape))
+        print('Within: ' + str(withinFeature.shape))
+        print('Between: ' + str(betweenFeature.shape))
+        print(stratStr)
 
     if np.isnan(withinFeature).any():
         howMany = len(np.where(np.isnan(withinFeature))[0])
@@ -901,7 +904,7 @@ def runMean(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
                                             nCors,
                                             runParamEst,
                                             alpha=alpha,
-                                            strat=fs,
+                                            strat=featureSelection,
                                             numFeat=desFeat)
     betweenResult, betweenTrainDict = mainSVR(betweenFeature,
                                               ageStack,
@@ -910,7 +913,7 @@ def runMean(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
                                               nCors,
                                               runParamEst,
                                               alpha=alpha,
-                                              strat=fs,
+                                              strat=featureSelection,
                                               numFeat=desFeat)
 
     # Done running, plotting now
@@ -949,8 +952,9 @@ def runBrain(connectomeStack, ageStack, crossVal):
     '''
     Method that runs on whole brain connectivity
     '''
-    print('Lets do the brain!\n'
-          + stratStr)
+    if not doPermute:
+        print('Lets do the brain!\n'
+              + stratStr)
     mask = np.ones_like(connectomeStack[..., 0])
     mask = np.tril(mask, -1)
     feature = connectomeStack[mask == 1].T
@@ -961,7 +965,7 @@ def runBrain(connectomeStack, ageStack, crossVal):
                                 nCors,
                                 runParamEst,
                                 alpha=alpha,
-                                strat=fs,
+                                strat=featureSelection,
                                 numFeat=desFeat)
 
     if doPlot:
@@ -986,7 +990,8 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
     networkTrainResults = {}
 
     for i, network in enumerate(networkNodes.keys()):
-        print('plotting network ' + network)
+        if not doPermute:
+            print('plotting network ' + network)
         netNodes = networkNodes[network]
         # get boolean index of within network nodes
         networkIndex = np.in1d(uniqueRoi, netNodes)
@@ -1015,8 +1020,9 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
         betweenFeature = betweenMatrix.T
 
         # Run SVR
-        print('\nRunning within ' + network + ' connectivity SVR ('
-              + str(i) + '/' + str(len(networkNodes.keys())) + ')')
+        if not doPermute:
+            print('\nRunning within ' + network + ' connectivity SVR ('
+                  + str(i) + '/' + str(len(networkNodes.keys())) + ')')
         withinResult, withinTrainDict = mainSVR(withinFeature,
                                                 ageStack,
                                                 crossVal,
@@ -1024,10 +1030,11 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
                                                 nCors,
                                                 runParamEst,
                                                 alpha=alpha,
-                                                strat=fs,
+                                                strat=featureSelection,
                                                 numFeat=desFeat)
-        print('\nRunning between ' + network + ' connectivity SVR ('
-              + str(i) + '/' + str(len(networkNodes.keys())) + ')')
+        if not doPermute:
+            print('\nRunning between ' + network + ' connectivity SVR ('
+                  + str(i) + '/' + str(len(networkNodes.keys())) + ')')
         betweenResult, betweenTrainDict = mainSVR(betweenFeature,
                                                   ageStack,
                                                   crossVal,
@@ -1035,7 +1042,7 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
                                                   nCors,
                                                   runParamEst,
                                                   alpha=alpha,
-                                                  strat=fs,
+                                                  strat=featureSelection,
                                                   numFeat=desFeat)
 
         # Store the output in the output Dictionary for networks
@@ -1062,7 +1069,7 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
     return networkResults
 
 
-def doPermute(runwhat, numPermute, connectomeStack, ageStack, networkNodes,
+def runPermute(runwhat, numPermute, connectomeStack, ageStack, networkNodes,
               uniqueRoi, crossVal):
     '''
     Method to do permutation testing. Return a matrix of:
@@ -1081,8 +1088,8 @@ def doPermute(runwhat, numPermute, connectomeStack, ageStack, networkNodes,
     if runwhat == 'network':
         for permutation in np.arange(numPermute):
             # Shuffle the labels
-            runAgeStack = np.random.shuffle(ageStack)
-            networkResults = runNetwork(connectomeStack, runAgeStack,
+            np.random.shuffle(ageStack)
+            networkResults = runNetwork(connectomeStack, ageStack,
                                         networkNodes, uniqueRoi,
                                         crossVal)
             # Get the network results out again
@@ -1092,48 +1099,54 @@ def doPermute(runwhat, numPermute, connectomeStack, ageStack, networkNodes,
                 (withinResult, betweenResult) = networkResults[network]
                 resultMat = np.concatenate((withinResult, betweenResult),
                                            axis=1)
+                resultMat = resultMat[..., None]
                 # Now stack it along the Axis-2
                 if not network in permutationDict:
                     # This is the first time, initialize
-                    permutationDict[network] = resultMat[..., None]
+                    permutationDict[network] = resultMat
                 else:
                     tempMat = permutationDict[network]
                     tempMat = np.concatenate((tempMat,
-                                              resultMat[..., None]),
+                                              resultMat),
                                              axis=2)
                     permutationDict[network] = tempMat
             # Done with reading the networks for this permutation
-            sys.stdout.write('\r' + str(permutation) + ' / ' + str(numPermute))
+            sys.stdout.write('\r' + stratStr + ': '
+                             + str(permutation) + ' / ' + str(numPermute))
             sys.stdout.flush()
         # Done with permuting
 
     elif runwhat == 'brain':
         for permutation in np.arange(numPermute):
             # Shuffle the labels
-            runAgeStack = np.random.shuffle(ageStack)
-            result = runBrain(connectomeStack, runAgeStack, crossVal)
+            np.random.shuffle(ageStack)
+            result = runBrain(connectomeStack, ageStack, crossVal)
             # Generate result matrix for this permutation by adding one
             # dimension
             resultMat = result[..., None]
+            # Get the MSE just for fun
+            tempMSE = np.mean(np.square(result[:, 0] - result[:, 1]))
             # Now stack along axis-2 to the dict
             if not runwhat in permutationDict:
                 # This is the first time, initialize
-                permutationDict[runwhat] = resultMat[..., None]
+                permutationDict[runwhat] = resultMat
             else:
-                tempMat = permutationDict[network]
+                tempMat = permutationDict[runwhat]
                 tempMat = np.concatenate((tempMat,
-                                          resultMat[..., None]),
+                                          resultMat),
                                          axis=2)
-                permutationDict[network] = tempMat
+                permutationDict[runwhat] = tempMat
             # Done with stacking result
-            sys.stdout.write('\r' + str(permutation) + ' / ' + str(numPermute))
+            sys.stdout.write('\r' + stratStr + ': '
+                             + str(permutation) + ' / ' + str(numPermute)
+                             + ' (' + str(tempMSE) + ')')
             sys.stdout.flush()
         # Done with permuting
 
     elif runwhat == 'mean':
         for permutation in np.arange(numPermute):
             # Shuffle the labels
-            runAgeStack = np.random.shuffle(ageStack)
+            np.random.shuffle(ageStack)
             (withinResult, betweenResult) = runMean(connectomeStack, ageStack,
                                                     networkNodes, uniqueRoi,
                                                     crossVal)
@@ -1141,18 +1154,22 @@ def doPermute(runwhat, numPermute, connectomeStack, ageStack, networkNodes,
             # permutation
             resultMat = np.concatenate((withinResult, betweenResult),
                                        axis=1)
+            resultMat = resultMat[..., None]
+            # Get the MSE just for fun
+            tempMSE = np.mean(np.square(result[:, 0] - result[:, 1]))
             # Now stack along axis-2 to the dict
             if not runwhat in permutationDict:
                 # This is the first time, initialize
-                permutationDict[runwhat] = resultMat[..., None]
+                permutationDict[runwhat] = resultMat
             else:
-                tempMat = permutationDict[network]
+                tempMat = permutationDict[runwhat]
                 tempMat = np.concatenate((tempMat,
-                                          resultMat[..., None]),
+                                          resultMat),
                                          axis=2)
-                permutationDict[network] = tempMat
+                permutationDict[runwhat] = tempMat
             # Done with stacking result
-            sys.stdout.write('\r' + str(permutation) + ' / ' + str(numPermute))
+            sys.stdout.write('\r' + stratStr + ': '
+                             + str(permutation) + ' / ' + str(numPermute))
             sys.stdout.flush()
         # Done with permuting
 
@@ -1191,19 +1208,21 @@ def Main():
     global runParamEst
     global doPlot
     global doSave
-    global fs
+    global featureSelection
     global alpha
     global desFeat
+    global doPermute
     doCV = 'kfold'
     kfold = 10
     nCors = 5
     kernel = 'linear'
     runParamEst = True
-    doPlot = True
+    doPlot = False
     doSave = False
-    fs = 'rfe'
+    featureSelection = 'rfe'
     alpha = 0.2
     desFeat = 200
+    doPermute = True
 
     global pathToTrainOutputFile
     global pathToPredictionOutputFile
@@ -1212,7 +1231,6 @@ def Main():
 
     # Define local variables
     runwhat = 'brain'
-    doPermute = False
     numPermute = 100
     which = 'wave'
 
@@ -1220,7 +1238,7 @@ def Main():
                 + '_' + str(kfold)
                 + '_' + kernel
                 + '_' + str(runParamEst)
-                + '_' + str(fs)
+                + '_' + str(featureSelection)
                 + '_' + str(runwhat)
                 + '_' + os.path.splitext(connectomeSuffix)[0])
 
@@ -1323,10 +1341,10 @@ def Main():
     # First check if we are permuting
     if doPermute:
         # Yes, we are permuting
-        permutationDict = doPermute(runwhat, numPermute,
-                                    connectomeStack, ageStack,
-                                    networkNodes, uniqueRoi,
-                                    crossVal)
+        permutationDict = runPermute(runwhat, numPermute,
+                                     connectomeStack, ageStack,
+                                     networkNodes, uniqueRoi,
+                                     crossVal)
         status = saveOutput(pathToPermutationOutputFile, permutationDict)
         print(status)
 
