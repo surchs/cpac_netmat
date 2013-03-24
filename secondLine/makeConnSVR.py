@@ -372,7 +372,7 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
     '''
     numberOfFeatures = trainFeature.shape[1]
     maxFeatRFE = 2000
-    pThresh = 0.05
+    pThresh = alpha
 
     if str(strat) == 'corr':
         rVector, pVector = corrFeature(trainFeature, trainAge)
@@ -420,12 +420,13 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
             featIndex = rfecvFeature(trainFeature, trainAge, kernel='linear')
 
     elif str(strat) == 'None':
+        print('Not doing any feature selection')
         firstIndex = np.ones(numberOfFeatures)
         featIndex = firstIndex == 1
 
     else:
         message = ('Your strategy (' + str(strat)
-                + ') is either not implemented or None.')
+                + ') is not implemented.')
         raise Exception(message)
 
     # Check if anything comes through at all
@@ -803,7 +804,7 @@ def networkPlot(networkResults):
 
 def trainPlot(withinDict, betweenDict=None):
     '''
-    Method to visualize the network level results on training data (aka for 
+    Method to visualize the network level results on training data (aka for
     each cross validation loop)
     '''
     for run in withinDict.keys():
