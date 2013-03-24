@@ -822,119 +822,44 @@ def trainPlot(withinDict, betweenDict=None):
             break
 
 
-def runMean():
+def runMean(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
     '''
     Method that runs on the mean connectivity, separated by within and between
     '''
-    if takeFeat == 'mean':
-        print('Doing the mean!')
-        # Check if the features are ok
-        print('Age: ' + str(ageStack.shape))
-        print('Within: ' + str(withinFeature.shape))
-        print('Between: ' + str(betweenFeature.shape))
-        print(stratStr)
+    # Prepare containers
+    withinFeature = np.array([])
+    betweenFeature = np.array([])
 
-        if np.isnan(withinFeature).any():
-            howMany = len(np.where(np.isnan(withinFeature))[0])
-            message = ('within matrix contains nan at ' + str(howMany)
-                       + ' locations')
-            raise Exception(message)
+    for i, network in enumerate(networkNodes.keys()):
+        print('plotting network ' + network)
+        netNodes = networkNodes[network]
+        # get boolean index of within network nodes
+        networkIndex = np.in1d(uniqueRoi, netNodes)
+        # make a boolean index for within and between
+        betweenIndex = networkIndex != True
 
-        if np.isnan(betweenFeature).any():
-            howMany = len(np.where(np.isnan(betweenFeature))[0])
-            message = ('between matrix contains nan ' + str(howMany)
-                       + ' locations')
-            raise Exception(message)
+        # Get the network connections
+        networkStack = connectomeStack[networkIndex, ...]
 
-        # do the real thing
-        withinResult, withinTrainDict = mainSVR(withinFeature,
-                                                ageStack,
-                                                crossVal,
-                                                kernel,
-                                                nCors,
-                                                runParamEst,
-                                                alpha=alpha,
-                                                strat=fs,
-                                                numFeat=desFeat)
-        betweenResult, betweenTrainDict = mainSVR(betweenFeature,
-                                                  ageStack,
-                                                  crossVal,
-                                                  kernel,
-                                                  nCors,
-                                                  runParamEst,
-                                                  alpha=alpha,
-                                                  strat=fs,
-                                                  numFeat=desFeat)
-        if doPlot:
-            print('Plotting what we actually wanted...\n'
-                  + stratStr)
-            # Plot mean connectivity across age
-            plt.plot(ageStack, withinFeature, 'g.')
-            plt.title('within mean connectivity')
-            plt.show()
-            raw_input('hallo...')
-            plt.close()
+        # Get the within network connections
+        withinStack = networkStack[:, networkIndex, ...]
+        # Get the lower triangle of these
+        withinMask = np.ones_like(withinStack[..., 0])
+        withinMask = np.tril(withinMask, -1)
+        withinMatrix = withinStack[withinMask == 1]
+        # Get mean connectivity within
+        meanWithin = np.average(withinMatrix, axis=0)
 
-            plt.plot(ageStack, betweenFeature, 'g.')
-            plt.title('between mean connectivity')
-            plt.show()
-            raw_input('hallo...')
-            plt.close()
+        # Get the between network connections
+        betweenStack = networkStack[:, betweenIndex, ...]
+        betweenRows, betweenCols, betweenSubs = betweenStack.shape
+        # Also flatten this stuff out
+        betweenMatrix = np.reshape(betweenStack, (betweenRows * betweenCols,
+                                                  betweenSubs))
+        # Get mean connectivity between
+        meanBetween = np.average(betweenMatrix, axis=0)
 
-            dualPlot(withinResult, betweenResult, 'within and between connectivit'
-                     + ' predicting age')
-            trainPlot(withinTrainDict, betweenTrainDict)
-
-        testSaveTuple = (withinResult, betweenResult)
-        trainSaveTuple = (withinTrainDict, betweenTrainDict)
-        status = saveOutput(pathToPredictionOutputFile, testSaveTuple)
-        status = saveOutput(pathToTrainOutputFile, trainSaveTuple)
-
-
-
-
-    pass
-
-
-def runBrain():
-    '''
-    Method that runs on whole brain connectivity
-    '''
-    if takeFeat == 'brain':
-        print('Lets do the brain!\n'
-              + stratStr)
-        mask = np.ones_like(connectomeStack[..., 0])
-        mask = np.tril(mask, -1)
-        feature = connectomeStack[mask == 1].T
-        result, trainDict = mainSVR(feature,
-                                    ageStack,
-                                    crossVal,
-                                    kernel,
-                                    nCors,
-                                    runParamEst,
-                                    alpha=alpha,
-                                    strat=fs,
-                                    numFeat=desFeat)
-
-        if doPlot:
-            singlePlot(result, 'whole brain SVR plot')
-            trainPlot(trainDict)
-        status = saveOutput(pathToPredictionOutputFile, result)
-        status = saveOutput(pathToTrainOutputFile, trainDict)
-        print(status)
-
-
-    pass
-
-
-def runNetwork():
-    '''
-    Method that runs on network based connectivity
-    '''
-    if takeFeat == 'conn':
-            withinFeature = withinMatrix.T
-            betweenFeature = betweenMatrix.T
-    else:
+        # Make the features
         if withinFeature.size == 0:
             withinFeature = meanWithin[..., None]
         else:
@@ -949,7 +874,146 @@ def runNetwork():
                                              meanBetween[..., None]),
                                             axis=1)
 
-    if takeFeat == 'conn':
+    print('Doing the mean!')
+    # Check if the features are ok
+    print('Age: ' + str(ageStack.shape))
+    print('Within: ' + str(withinFeature.shape))
+    print('Between: ' + str(betweenFeature.shape))
+    print(stratStr)
+
+    if np.isnan(withinFeature).any():
+        howMany = len(np.where(np.isnan(withinFeature))[0])
+        message = ('within matrix contains nan at ' + str(howMany)
+                   + ' locations')
+        raise Exception(message)
+
+    if np.isnan(betweenFeature).any():
+        howMany = len(np.where(np.isnan(betweenFeature))[0])
+        message = ('between matrix contains nan ' + str(howMany)
+                   + ' locations')
+        raise Exception(message)
+
+    # do the real thing
+    withinResult, withinTrainDict = mainSVR(withinFeature,
+                                            ageStack,
+                                            crossVal,
+                                            kernel,
+                                            nCors,
+                                            runParamEst,
+                                            alpha=alpha,
+                                            strat=fs,
+                                            numFeat=desFeat)
+    betweenResult, betweenTrainDict = mainSVR(betweenFeature,
+                                              ageStack,
+                                              crossVal,
+                                              kernel,
+                                              nCors,
+                                              runParamEst,
+                                              alpha=alpha,
+                                              strat=fs,
+                                              numFeat=desFeat)
+
+    # Done running, plotting now
+    if doPlot:
+        print('Plotting what we actually wanted...\n'
+              + stratStr)
+        # Plot mean connectivity across age
+        plt.plot(ageStack, withinFeature, '.')
+        plt.title('within mean connectivity')
+        plt.show()
+        raw_input('Enter...')
+        plt.close()
+
+        plt.plot(ageStack, betweenFeature, 'g.')
+        plt.title('between mean connectivity')
+        plt.show()
+        raw_input('Enter...')
+        plt.close()
+
+        dualPlot(withinResult, betweenResult, 'within and between connectivity'
+                 + ' predicting age')
+        trainPlot(withinTrainDict, betweenTrainDict)
+
+    testSaveTuple = (withinResult, betweenResult)
+    trainSaveTuple = (withinTrainDict, betweenTrainDict)
+    if doSave:
+        status = saveOutput(pathToPredictionOutputFile, testSaveTuple)
+        print(status)
+        status = saveOutput(pathToTrainOutputFile, trainSaveTuple)
+        print(status)
+
+    return testSaveTuple
+
+
+def runBrain(connectomeStack, ageStack, crossVal):
+    '''
+    Method that runs on whole brain connectivity
+    '''
+    print('Lets do the brain!\n'
+          + stratStr)
+    mask = np.ones_like(connectomeStack[..., 0])
+    mask = np.tril(mask, -1)
+    feature = connectomeStack[mask == 1].T
+    result, trainDict = mainSVR(feature,
+                                ageStack,
+                                crossVal,
+                                kernel,
+                                nCors,
+                                runParamEst,
+                                alpha=alpha,
+                                strat=fs,
+                                numFeat=desFeat)
+
+    if doPlot:
+        singlePlot(result, 'whole brain SVR plot')
+        trainPlot(trainDict)
+
+    if doSave:
+        status = saveOutput(pathToPredictionOutputFile, result)
+        print(status)
+        status = saveOutput(pathToTrainOutputFile, trainDict)
+        print(status)
+
+    return result
+
+
+def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
+    '''
+    Method that runs on network based connectivity
+    '''
+    # Prepare containers
+    networkResults = {}
+    networkTrainResults = {}
+
+    for i, network in enumerate(networkNodes.keys()):
+        print('plotting network ' + network)
+        netNodes = networkNodes[network]
+        # get boolean index of within network nodes
+        networkIndex = np.in1d(uniqueRoi, netNodes)
+        # make a boolean index for within and between
+        betweenIndex = networkIndex != True
+
+        # Get the network connections
+        networkStack = connectomeStack[networkIndex, ...]
+
+        # Get the within network connections
+        withinStack = networkStack[:, networkIndex, ...]
+        # Get the lower triangle of these
+        withinMask = np.ones_like(withinStack[..., 0])
+        withinMask = np.tril(withinMask, -1)
+        withinMatrix = withinStack[withinMask == 1]
+
+        # Get the between network connections
+        betweenStack = networkStack[:, betweenIndex, ...]
+        betweenRows, betweenCols, betweenSubs = betweenStack.shape
+        # Also flatten this stuff out
+        betweenMatrix = np.reshape(betweenStack, (betweenRows * betweenCols,
+                                                  betweenSubs))
+
+        # Get the network features
+        withinFeature = withinMatrix.T
+        betweenFeature = betweenMatrix.T
+
         # Run SVR
         print('\nRunning within ' + network + ' connectivity SVR ('
               + str(i) + '/' + str(len(networkNodes.keys())) + ')')
@@ -980,9 +1044,11 @@ def runNetwork():
         trainResult = (withinTrainDict, betweenTrainDict)
         networkTrainResults[network] = trainResult
 
-    status = saveOutput(pathToPredictionOutputFile, networkResults)
-    status = saveOutput(pathToTrainOutputFile, networkTrainResults)
-    print(status)
+    if doSave:
+        status = saveOutput(pathToPredictionOutputFile, networkResults)
+        print(status)
+        status = saveOutput(pathToTrainOutputFile, networkTrainResults)
+        print(status)
 
     if doPlot:
         # Done with running analysis. Plotting by network now
@@ -993,9 +1059,108 @@ def runNetwork():
             (withinTrainDict, betweenTrainDict) = networkTrainResults[network]
             trainPlot(withinTrainDict, betweenTrainDict)
 
-    pass
+    return networkResults
 
 
+def doPermute(runwhat, numPermute, connectomeStack, ageStack, networkNodes,
+              uniqueRoi, crossVal):
+    '''
+    Method to do permutation testing. Return a matrix of:
+        2 (true, predicted)
+        BY
+        numSubjects
+        BY
+        numPermute
+    dimensions for calculation of accuracy.
+    If there are within AND between results, the between results get appended
+    along the 1-Axis (column 3 and 4).
+    '''
+    # Prepare the storage container
+    permutationDict = {}
+    # What are we running
+    if runwhat == 'network':
+        for permutation in np.arange(numPermute):
+            # Shuffle the labels
+            runAgeStack = np.random.shuffle(ageStack)
+            networkResults = runNetwork(connectomeStack, runAgeStack,
+                                        networkNodes, uniqueRoi,
+                                        crossVal)
+            # Get the network results out again
+            for network in networkResults.keys():
+                # Generate the matrix of results for this network and
+                # permutation
+                (withinResult, betweenResult) = networkResults[network]
+                resultMat = np.concatenate((withinResult, betweenResult),
+                                           axis=1)
+                # Now stack it along the Axis-2
+                if not network in permutationDict:
+                    # This is the first time, initialize
+                    permutationDict[network] = resultMat[..., None]
+                else:
+                    tempMat = permutationDict[network]
+                    tempMat = np.concatenate((tempMat,
+                                              resultMat[..., None]),
+                                             axis=2)
+                    permutationDict[network] = tempMat
+            # Done with reading the networks for this permutation
+            sys.stdout.write('\r' + str(permutation) + ' / ' + str(numPermute))
+            sys.stdout.flush()
+        # Done with permuting
+
+    elif runwhat == 'brain':
+        for permutation in np.arange(numPermute):
+            # Shuffle the labels
+            runAgeStack = np.random.shuffle(ageStack)
+            result = runBrain(connectomeStack, runAgeStack, crossVal)
+            # Generate result matrix for this permutation by adding one
+            # dimension
+            resultMat = result[..., None]
+            # Now stack along axis-2 to the dict
+            if not runwhat in permutationDict:
+                # This is the first time, initialize
+                permutationDict[runwhat] = resultMat[..., None]
+            else:
+                tempMat = permutationDict[network]
+                tempMat = np.concatenate((tempMat,
+                                          resultMat[..., None]),
+                                         axis=2)
+                permutationDict[network] = tempMat
+            # Done with stacking result
+            sys.stdout.write('\r' + str(permutation) + ' / ' + str(numPermute))
+            sys.stdout.flush()
+        # Done with permuting
+
+    elif runwhat == 'mean':
+        for permutation in np.arange(numPermute):
+            # Shuffle the labels
+            runAgeStack = np.random.shuffle(ageStack)
+            (withinResult, betweenResult) = runMean(connectomeStack, ageStack,
+                                                    networkNodes, uniqueRoi,
+                                                    crossVal)
+            # Generate the matrix of results for this network and
+            # permutation
+            resultMat = np.concatenate((withinResult, betweenResult),
+                                       axis=1)
+            # Now stack along axis-2 to the dict
+            if not runwhat in permutationDict:
+                # This is the first time, initialize
+                permutationDict[runwhat] = resultMat[..., None]
+            else:
+                tempMat = permutationDict[network]
+                tempMat = np.concatenate((tempMat,
+                                          resultMat[..., None]),
+                                         axis=2)
+                permutationDict[network] = tempMat
+            # Done with stacking result
+            sys.stdout.write('\r' + str(permutation) + ' / ' + str(numPermute))
+            sys.stdout.flush()
+        # Done with permuting
+
+    else:
+        message = ('Don\'t know what to do here. You selected ' + runwhat)
+        raise Exception(message)
+
+    return permutationDict
 
 
 def saveOutput(outputFilePath, output):
@@ -1018,31 +1183,51 @@ def Main():
 
     connectomeSuffix = '_connectome_glob.txt'
 
-    # Define parameters
+    # Define global variables
+    global doCV
+    global kfold
+    global nCors
+    global kernel
+    global runParamEst
+    global doPlot
+    global doSave
+    global fs
+    global alpha
+    global desFeat
     doCV = 'kfold'
     kfold = 10
     nCors = 5
     kernel = 'linear'
     runParamEst = True
-    takeFeat = 'brain'
     doPlot = True
-    doPermute = False
-    which = 'wave'
+    doSave = False
     fs = 'rfe'
     alpha = 0.2
     desFeat = 200
+
+    global pathToTrainOutputFile
+    global pathToPredictionOutputFile
+    global pathToPermutationOutputFile
+    global stratStr
+
+    # Define local variables
+    runwhat = 'brain'
+    doPermute = False
+    numPermute = 100
+    which = 'wave'
 
     stratStr = (doCV
                 + '_' + str(kfold)
                 + '_' + kernel
                 + '_' + str(runParamEst)
                 + '_' + str(fs)
-                + '_' + takeFeat
+                + '_' + str(runwhat)
                 + '_' + os.path.splitext(connectomeSuffix)[0])
 
     print(stratStr)
 
-    pathToOutputFile = '/home2/surchs/secondLine/SVM/wave/dos160/emp_' + stratStr + '_SVR'
+    pathToOutputFile = ('/home2/surchs/secondLine/SVM/wave/dos160/emp_'
+                        + stratStr + '_SVR')
     pathToTrainOutputFile = pathToOutputFile + '.train'
     pathToPredictionOutputFile = pathToOutputFile + '.pred'
     pathToPermutationOutputFile = pathToOutputFile + '.permut'
@@ -1057,7 +1242,6 @@ def Main():
         raise Exception(message)
     else:
         print('Your paths are ok.')
-
 
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
@@ -1079,10 +1263,6 @@ def Main():
     connectomeStack = np.array([])
     ageStack = np.array([])
     meanConnStack = np.array([])
-    networkResults = {}
-    networkTrainResults = {}
-    withinFeature = np.array([])
-    betweenFeature = np.array([])
 
     if doCV == 'loocv':
         crossVal = cv.LeaveOneOut(len(phenoSubjects))
@@ -1139,193 +1319,35 @@ def Main():
         # Stack ages
         ageStack = stackAges(ageStack, phenoAge)
 
-    # Now we have the connectome stack
-    # Let's loop through the networks again
-    for i, network in enumerate(networkNodes.keys()):
-        if takeFeat == 'brain':
-            # Leave it alone
-            print('Looking for whole brain here...')
-            continue
+    # Done preparing, now run whatever we want
+    # First check if we are permuting
+    if doPermute:
+        # Yes, we are permuting
+        permutationDict = doPermute(runwhat, numPermute,
+                                    connectomeStack, ageStack,
+                                    networkNodes, uniqueRoi,
+                                    crossVal)
+        status = saveOutput(pathToPermutationOutputFile, permutationDict)
+        print(status)
 
-        print('plotting network ' + network)
-        netNodes = networkNodes[network]
-        # get boolean index of within network nodes
-        networkIndex = np.in1d(uniqueRoi, netNodes)
-        # make a boolean index for within and between
-        betweenIndex = networkIndex != True
-
-        # Get the network connections
-        networkStack = connectomeStack[networkIndex, ...]
-
-        # Get the within network connections
-        withinStack = networkStack[:, networkIndex, ...]
-        # Get the lower triangle of these
-        withinMask = np.ones_like(withinStack[..., 0])
-        withinMask = np.tril(withinMask, -1)
-        withinMatrix = withinStack[withinMask == 1]
-        # Get mean connectivity within
-        meanWithin = np.average(withinMatrix, axis=0)
-
-        # Get the between network connections
-        betweenStack = networkStack[:, betweenIndex, ...]
-        betweenRows, betweenCols, betweenSubs = betweenStack.shape
-        # Also flatten this stuff out
-        betweenMatrix = np.reshape(betweenStack, (betweenRows * betweenCols,
-                                                  betweenSubs))
-        # Get mean connectivity between
-        meanBetween = np.average(betweenMatrix, axis=0)
-
-        # Make feature for SVR
-        if takeFeat == 'conn':
-            withinFeature = withinMatrix.T
-            betweenFeature = betweenMatrix.T
+    else:
+        # No, we are not permuting
+        if runwhat == 'network':
+            runNetwork(connectomeStack, ageStack,
+                       networkNodes, uniqueRoi,
+                       crossVal)
+            pass
+        elif runwhat == 'brain':
+            runBrain(connectomeStack, ageStack,
+                     crossVal)
+            pass
+        elif runwhat == 'mean':
+            runMean(connectomeStack, ageStack,
+                    networkNodes, uniqueRoi,
+                    crossVal)
+            pass
         else:
-            if withinFeature.size == 0:
-                withinFeature = meanWithin[..., None]
-            else:
-                withinFeature = np.concatenate((withinFeature,
-                                                meanWithin[..., None]),
-                                               axis=1)
-
-            if betweenFeature.size == 0:
-                betweenFeature = meanBetween[..., None]
-            else:
-                betweenFeature = np.concatenate((betweenFeature,
-                                                 meanBetween[..., None]),
-                                                axis=1)
-
-        if takeFeat == 'conn':
-            # Run SVR
-            print('\nRunning within ' + network + ' connectivity SVR ('
-                  + str(i) + '/' + str(len(networkNodes.keys())) + ')')
-            withinResult, withinTrainDict = mainSVR(withinFeature,
-                                                    ageStack,
-                                                    crossVal,
-                                                    kernel,
-                                                    nCors,
-                                                    runParamEst,
-                                                    alpha=alpha,
-                                                    strat=fs,
-                                                    numFeat=desFeat)
-            print('\nRunning between ' + network + ' connectivity SVR ('
-                  + str(i) + '/' + str(len(networkNodes.keys())) + ')')
-            betweenResult, betweenTrainDict = mainSVR(betweenFeature,
-                                                      ageStack,
-                                                      crossVal,
-                                                      kernel,
-                                                      nCors,
-                                                      runParamEst,
-                                                      alpha=alpha,
-                                                      strat=fs,
-                                                      numFeat=desFeat)
-
-            # Store the output in the output Dictionary for networks
-            result = (withinResult, betweenResult)
-            networkResults[network] = result
-            trainResult = (withinTrainDict, betweenTrainDict)
-            networkTrainResults[network] = trainResult
-
-    if takeFeat == 'mean':
-        print('Doing the mean!')
-        # Check if the features are ok
-        print('Age: ' + str(ageStack.shape))
-        print('Within: ' + str(withinFeature.shape))
-        print('Between: ' + str(betweenFeature.shape))
-        print(stratStr)
-
-        if np.isnan(withinFeature).any():
-            howMany = len(np.where(np.isnan(withinFeature))[0])
-            message = ('within matrix contains nan at ' + str(howMany)
-                       + ' locations')
-            raise Exception(message)
-
-        if np.isnan(betweenFeature).any():
-            howMany = len(np.where(np.isnan(betweenFeature))[0])
-            message = ('between matrix contains nan ' + str(howMany)
-                       + ' locations')
-            raise Exception(message)
-
-        # do the real thing
-        withinResult, withinTrainDict = mainSVR(withinFeature,
-                                                ageStack,
-                                                crossVal,
-                                                kernel,
-                                                nCors,
-                                                runParamEst,
-                                                alpha=alpha,
-                                                strat=fs,
-                                                numFeat=desFeat)
-        betweenResult, betweenTrainDict = mainSVR(betweenFeature,
-                                                  ageStack,
-                                                  crossVal,
-                                                  kernel,
-                                                  nCors,
-                                                  runParamEst,
-                                                  alpha=alpha,
-                                                  strat=fs,
-                                                  numFeat=desFeat)
-        if doPlot:
-            print('Plotting what we actually wanted...\n'
-                  + stratStr)
-            # Plot mean connectivity across age
-            plt.plot(ageStack, withinFeature, 'g.')
-            plt.title('within mean connectivity')
-            plt.show()
-            raw_input('hallo...')
-            plt.close()
-
-            plt.plot(ageStack, betweenFeature, 'g.')
-            plt.title('between mean connectivity')
-            plt.show()
-            raw_input('hallo...')
-            plt.close()
-
-            dualPlot(withinResult, betweenResult, 'within and between connectivit'
-                     + ' predicting age')
-            trainPlot(withinTrainDict, betweenTrainDict)
-
-        testSaveTuple = (withinResult, betweenResult)
-        trainSaveTuple = (withinTrainDict, betweenTrainDict)
-        status = saveOutput(pathToPredictionOutputFile, testSaveTuple)
-        status = saveOutput(pathToTrainOutputFile, trainSaveTuple)
-
-    if takeFeat == 'brain':
-        print('Lets do the brain!\n'
-              + stratStr)
-        mask = np.ones_like(connectomeStack[..., 0])
-        mask = np.tril(mask, -1)
-        feature = connectomeStack[mask == 1].T
-        result, trainDict = mainSVR(feature,
-                                    ageStack,
-                                    crossVal,
-                                    kernel,
-                                    nCors,
-                                    runParamEst,
-                                    alpha=alpha,
-                                    strat=fs,
-                                    numFeat=desFeat)
-
-        if doPlot:
-            singlePlot(result, 'whole brain SVR plot')
-            trainPlot(trainDict)
-        status = saveOutput(pathToPredictionOutputFile, result)
-        status = saveOutput(pathToTrainOutputFile, trainDict)
-        print(status)
-
-    elif takeFeat == 'conn':
-
-        status = saveOutput(pathToPredictionOutputFile, networkResults)
-        status = saveOutput(pathToTrainOutputFile, networkTrainResults)
-        print(status)
-
-        if doPlot:
-            # Done with running analysis. Plotting by network now
-            networkPlot(networkResults)
-            for network in networkTrainResults:
-                print('Plotting training on ' + network + '\n'
-                      + stratStr)
-                (withinTrainDict, betweenTrainDict) = networkTrainResults[network]
-                trainPlot(withinTrainDict, betweenTrainDict)
+            print('Don\'t know what to do here. You selected ' + runwhat)
 
 
 if __name__ == '__main__':
