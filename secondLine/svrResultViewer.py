@@ -7,6 +7,7 @@ import os
 import sys
 import gzip
 import time
+import glob
 import cPickle
 import numpy as np
 import pandas as pa
@@ -269,7 +270,8 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst):
     # return outputDict
 
 
-def dualPlot(resultWithin, resultBetween, title, outDir, trainPlot=False):
+def dualPlot(resultWithin, resultBetween, title, outDir, trainPlot=False,
+             perm=None):
     '''
     method to plot network results side by side
     '''
@@ -278,6 +280,12 @@ def dualPlot(resultWithin, resultBetween, title, outDir, trainPlot=False):
     wPred = resultWithin[:, 1]
     bTrue = resultBetween[:, 0]
     bPred = resultBetween[:, 1]
+
+    if doPermut:
+        # unpack these aswell
+        (withinPerm, betweenPerm) = perm
+        (wEmpMSE, wPerMSE, wPValue) = withinPerm
+        (bEmpMSE, bPerMSE, bPValue) = betweenPerm
 
     # Sanity check
     wSorted = np.sort(wTrue)
@@ -346,10 +354,23 @@ def dualPlot(resultWithin, resultBetween, title, outDir, trainPlot=False):
     wCorr, wCorrP = st.pearsonr(wTrue, wPred)
     bCorr, bCorrP = st.pearsonr(bTrue, bPred)
 
-    within.set_title('within (' + str(np.round(wCorr, 2)) + ', '
-                     + str(np.round(wCorrP, 4)) + ')')
-    between.set_title('between (' + str(np.round(bCorr, 2)) + ', '
-                     + str(np.round(bCorrP, 4)) + ')')
+    wTitle = ('w ('
+              + str(np.round(wCorr, 2)) + ', '
+              + str(np.round(wCorrP, 3)) + ')')
+    bTitle = ('b (' + str(np.round(bCorr, 2)) + ', '
+              + str(np.round(bCorrP, 4)) + ')')
+
+    if doPermut:
+        wTitle = (wTitle
+                  + ' - ' + str(np.round(wEmpMSE, 2))
+                  + ', ', str(np.round(wPerMSE, 2))
+                  + ' (' + str(np.round(wPValue, 3)) + ')')
+        bTitle = (bTitle
+                  + ' - ' + str(np.round(bEmpMSE, 2))
+                  + ', ', str(np.round(bPerMSE, 2))
+                  + ' (' + str(np.round(bPValue, 3)) + ')')
+    within.set_title(wTitle)
+    between.set_title(bTitle)
 
     # withinCorr, withinP = st.pearsonr(wTrue, wPred)
     within.plot(wTrue, wPred, 'k.')
@@ -469,14 +490,36 @@ def singlePlot(result, title, outDir, doPlot=False, doSave=False):
         plt.close()
 
 
-def networkPlot(networkResults, imageDir):
+def networkPlot(networkResults, imageDir, netPerm=None):
     '''
     Method to visualize the network level results
     '''
     for network in networkResults.keys():
         print('Plotting network ' + network + ' now.')
         (withinResult, betweenResult) = networkResults[network]
-        dualPlot(withinResult, betweenResult, network, imageDir)
+        # Now get the respective results
+        if doPermut:
+            # First get the permutation results
+            permutResults = netPerm[network]
+            # Split them up into within and between
+            withinPermut = permutResults[:, :2, :]
+            betweenPermut = permutResults[:, 2:4, :]
+            wEmpMSE, wDistMSE, wTValue, wPValue = testPermutation(withinResult,
+                                                                  withinPermut)
+            bEmpMSE, bDistMSE, bTValue, bPValue = testPermutation(betweenResult,
+                                                                  betweenPermut)
+            # Get the mean of the permutation MSE
+            wPerMSE = np.mean(wDistMSE)
+            bPerMSE = np.mean(bDistMSE)
+            # Stack the permutation results up
+            withinPerm = (wEmpMSE, wPerMSE, wPValue)
+            betweenPerm = (bEmpMSE, bPerMSE, bPValue)
+            permTuple = (withinPerm, betweenPerm)
+
+            dualPlot(withinResult, betweenResult, network, imageDir,
+                     perm=permTuple)
+        else:
+            dualPlot(withinResult, betweenResult, network, imageDir)
 
 
 def trainPrep(withinDict, betweenDict=None):
@@ -597,7 +640,7 @@ def trainSlopePlot(index, within, between=None, title='train slopes',
 
 def trainPlot(withinDict, betweenDict=None, netName='', outDir='./'):
     '''
-    Method to visualize the network level results on training data (aka for 
+    Method to visualize the network level results on training data (aka for
     each cross validation loop)
     '''
     for run in withinDict.keys():
@@ -618,6 +661,29 @@ def trainPlot(withinDict, betweenDict=None, netName='', outDir='./'):
             break
 
 
+def testPermutation(testResult, permutationResult):
+    '''
+    Method that essentially runs a t-test to determine if the test result
+    has significantly better error than the permutation set
+    '''
+    # test data
+    trueTest = testResult[:, 0]
+    predTest = testResult[:, 1]
+    # permutation data
+    truePermut = permutationResult[:, 0, :]
+    predPermut = permutationResult[:, 1, :]
+
+    # Get the MSE for the empirical values
+    empMSE = np.mean(np.square(trueTest - predTest))
+    # Now make a distribution of MSE from the permutations
+    distMSE = np.mean(np.square(truePermut - predPermut), axis=0)
+    # Run a one sample t-test on this thing - if significant, then our
+    # empirical MSE is significantly different from the permuted one
+    tValue, pValue = st.ttest_1samp(distMSE, empMSE)
+
+    return empMSE, distMSE, tValue, pValue
+
+
 def saveOutput(outputFilePath, output):
     f = gzip.open(outputFilePath, 'wb')
     cPickle.dump(output, f)
@@ -629,8 +695,41 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
+    pathToFiles = ''
+
+    pred = glob.glob(pathToFiles + '/*.pred')
+    if pred:
+        if len(pred) > 1:
+            message = ('More than one pred file!\n' + str(pred))
+            raise Exception(message)
+        pathToNetworkResults = pred[0]
+    else:
+        print('No prediction file at ' + str(pathToFiles))
+
+    train = glob.glob(pathToFiles + '/*.train')
+    if train:
+        if len(train) > 1:
+            message = ('More than one pred file!\n' + str(train))
+            raise Exception(message)
+        pathToTrainingResults = train[0]
+    else:
+        print('No training file at ' + str(pathToFiles))
+
+    perm = glob.glob(pathToFiles + '/*.permut')
+    if perm:
+        if len(perm) > 1:
+            message = ('More than one pred file!\n' + str(perm))
+            raise Exception(message)
+        pathToPermutationResults = perm[0]
+    else:
+        print('No permutation file at ' + str(pathToFiles))
+
+
+    '''
     pathToNetworkResults = '/home2/surchs/secondLine/SVM/wave/dos160/emp_kfold_10_linear_True_corr_brain__connectome_glob_SVR.pred'
     pathToTrainingResults = '/home2/surchs/secondLine/SVM/wave/dos160/emp_kfold_10_linear_True_corr_brain__connectome_glob_SVR.train'
+    pathToPermutationResults = ''
+    '''
 
     pathToOutputDir = '/home2/surchs/secondLine/images/SVR/empirical/wave'
     stratName = os.path.splitext(os.path.basename(pathToNetworkResults))[0]
@@ -641,6 +740,8 @@ def Main():
         os.makedirs(imageDir)
 
     # Define parameters
+    global doPermut
+    doPermut = False
     doNet = True
     doTrain = False
 
@@ -653,46 +754,79 @@ def Main():
 
     # Read input files
     netDict = loadArchive(pathToNetworkResults)
-    trainDict = loadArchive(pathToTrainingResults)
+
+    # trainDict = loadArchive(pathToTrainingResults)
+    if doPermut:
+        permutDict = loadArchive(pathToPermutationResults)
 
     # Plot the mean connectivity
     if doMean:
         print('Plotting what we actually wanted...\n')
         (withinResult, betweenResult) = netDict
-        (withinTrainDict, betweenTrainDict) = trainDict
+        # (withinTrainDict, betweenTrainDict) = trainDict
 
         dualPlot(withinResult, betweenResult, 'within and between connectivit'
                  + ' predicting age')
+
+        '''
+        No longer interested
 
         index, within, between = trainPrep(withinTrainDict,
                                            betweenTrainDict)
         trainSlopePlot(index, within, between=between, title='mean_slope_train',
                        outDir=imageDir)
 
+
+
         if doTrain:
             trainPlot(withinTrainDict, betweenTrainDict,
                       netName='Mean', outDir='./')
 
+        '''
+
     # Plot whole brain connectivity results
     if doBrain:
         result = netDict
-        trainDict = trainDict
 
-        singlePlot(result, 'whole brain SVR plot', imageDir,
+        title = 'whole brain SVR'
+        if doPermut:
+            permutResult = permutDict['brain']
+            # Check the permutation result
+            empMSE, distMSE, tValue, pValue = testPermutation(result,
+                                                              permutResult)
+            mseStr = ('MSE: ' + str(empMSE) + ' / ' + str(np.mean(distMSE))
+                      + ' (' + str(np.round(pValue, 4)) + ')')
+            title = (title + ' ' + mseStr)
+
+        singlePlot(result, title, imageDir,
                    doPlot=doPlot, doSave=doSave)
+
+        '''
+        No longer interested in this
+
         index, brain = trainPrep(trainDict)
         trainSlopePlot(index, brain, title='whole_brain_train',
                            outDir=imageDir)
+
+
+
         if doTrain:
             trainPlot(trainDict, netName='whole_brain', outDir=imageDir)
+        '''
 
     # Plot network connectivity results
     if doConn:
         # Done with running analysis. Plotting by network now
         networkResults = netDict
-        networkTrainResults = trainDict
+        # networkTrainResults = trainDict
 
-        networkPlot(networkResults, imageDir)
+        if doPermut:
+            networkPermut = permutDict
+            networkPlot(networkResults, imageDir, netPerm=networkPermut)
+        else:
+            networkPlot(networkResults, imageDir)
+        '''
+        We are no longer interested in plotting training
         for network in networkTrainResults:
             print('Plotting training on ' + network)
             (withinTrainDict, betweenTrainDict) = networkTrainResults[network]
@@ -704,6 +838,7 @@ def Main():
             if doTrain:
                 trainPlot(withinTrainDict, betweenTrainDict,
                           netName=network, outDir=imageDir)
+        '''
 
 
 if __name__ == '__main__':
