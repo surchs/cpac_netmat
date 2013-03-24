@@ -606,7 +606,8 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
 
     # Done, stack the output together (true age first, then predicted)
     if not doPermute:
-        print(str(np.max(tempFeatVec)) + ' consensus')
+        print(str(np.max(tempFeatVec)) + ' consensus / '
+              + str(len(np.where(tempFeatVec > 9)[0])))
     outputMatrix = np.concatenate((testAgeVec[..., None],
                                    predAgeVec[..., None]),
                                   axis=1)
@@ -1236,7 +1237,7 @@ def Main():
     featureSelection = 'rfe'
     alpha = 0.2
     desFeat = 200
-    doPermute = True
+    doPermute = False
 
     global pathToTrainOutputFile
     global pathToPredictionOutputFile
