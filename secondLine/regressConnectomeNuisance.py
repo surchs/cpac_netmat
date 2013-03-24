@@ -17,7 +17,6 @@ from sklearn import linear_model
 from matplotlib import pyplot as plt
 
 
-
 def loadConnectome(pathToConnectomeFile):
     connectome = np.loadtxt(pathToConnectomeFile)
 
