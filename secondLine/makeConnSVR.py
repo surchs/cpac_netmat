@@ -826,6 +826,73 @@ def runMean():
     '''
     Method that runs on the mean connectivity, separated by within and between
     '''
+    if takeFeat == 'mean':
+        print('Doing the mean!')
+        # Check if the features are ok
+        print('Age: ' + str(ageStack.shape))
+        print('Within: ' + str(withinFeature.shape))
+        print('Between: ' + str(betweenFeature.shape))
+        print(stratStr)
+
+        if np.isnan(withinFeature).any():
+            howMany = len(np.where(np.isnan(withinFeature))[0])
+            message = ('within matrix contains nan at ' + str(howMany)
+                       + ' locations')
+            raise Exception(message)
+
+        if np.isnan(betweenFeature).any():
+            howMany = len(np.where(np.isnan(betweenFeature))[0])
+            message = ('between matrix contains nan ' + str(howMany)
+                       + ' locations')
+            raise Exception(message)
+
+        # do the real thing
+        withinResult, withinTrainDict = mainSVR(withinFeature,
+                                                ageStack,
+                                                crossVal,
+                                                kernel,
+                                                nCors,
+                                                runParamEst,
+                                                alpha=alpha,
+                                                strat=fs,
+                                                numFeat=desFeat)
+        betweenResult, betweenTrainDict = mainSVR(betweenFeature,
+                                                  ageStack,
+                                                  crossVal,
+                                                  kernel,
+                                                  nCors,
+                                                  runParamEst,
+                                                  alpha=alpha,
+                                                  strat=fs,
+                                                  numFeat=desFeat)
+        if doPlot:
+            print('Plotting what we actually wanted...\n'
+                  + stratStr)
+            # Plot mean connectivity across age
+            plt.plot(ageStack, withinFeature, 'g.')
+            plt.title('within mean connectivity')
+            plt.show()
+            raw_input('hallo...')
+            plt.close()
+
+            plt.plot(ageStack, betweenFeature, 'g.')
+            plt.title('between mean connectivity')
+            plt.show()
+            raw_input('hallo...')
+            plt.close()
+
+            dualPlot(withinResult, betweenResult, 'within and between connectivit'
+                     + ' predicting age')
+            trainPlot(withinTrainDict, betweenTrainDict)
+
+        testSaveTuple = (withinResult, betweenResult)
+        trainSaveTuple = (withinTrainDict, betweenTrainDict)
+        status = saveOutput(pathToPredictionOutputFile, testSaveTuple)
+        status = saveOutput(pathToTrainOutputFile, trainSaveTuple)
+
+
+
+
     pass
 
 
@@ -833,6 +900,30 @@ def runBrain():
     '''
     Method that runs on whole brain connectivity
     '''
+    if takeFeat == 'brain':
+        print('Lets do the brain!\n'
+              + stratStr)
+        mask = np.ones_like(connectomeStack[..., 0])
+        mask = np.tril(mask, -1)
+        feature = connectomeStack[mask == 1].T
+        result, trainDict = mainSVR(feature,
+                                    ageStack,
+                                    crossVal,
+                                    kernel,
+                                    nCors,
+                                    runParamEst,
+                                    alpha=alpha,
+                                    strat=fs,
+                                    numFeat=desFeat)
+
+        if doPlot:
+            singlePlot(result, 'whole brain SVR plot')
+            trainPlot(trainDict)
+        status = saveOutput(pathToPredictionOutputFile, result)
+        status = saveOutput(pathToTrainOutputFile, trainDict)
+        print(status)
+
+
     pass
 
 
@@ -840,6 +931,68 @@ def runNetwork():
     '''
     Method that runs on network based connectivity
     '''
+    if takeFeat == 'conn':
+            withinFeature = withinMatrix.T
+            betweenFeature = betweenMatrix.T
+    else:
+        if withinFeature.size == 0:
+            withinFeature = meanWithin[..., None]
+        else:
+            withinFeature = np.concatenate((withinFeature,
+                                            meanWithin[..., None]),
+                                           axis=1)
+
+        if betweenFeature.size == 0:
+            betweenFeature = meanBetween[..., None]
+        else:
+            betweenFeature = np.concatenate((betweenFeature,
+                                             meanBetween[..., None]),
+                                            axis=1)
+
+    if takeFeat == 'conn':
+        # Run SVR
+        print('\nRunning within ' + network + ' connectivity SVR ('
+              + str(i) + '/' + str(len(networkNodes.keys())) + ')')
+        withinResult, withinTrainDict = mainSVR(withinFeature,
+                                                ageStack,
+                                                crossVal,
+                                                kernel,
+                                                nCors,
+                                                runParamEst,
+                                                alpha=alpha,
+                                                strat=fs,
+                                                numFeat=desFeat)
+        print('\nRunning between ' + network + ' connectivity SVR ('
+              + str(i) + '/' + str(len(networkNodes.keys())) + ')')
+        betweenResult, betweenTrainDict = mainSVR(betweenFeature,
+                                                  ageStack,
+                                                  crossVal,
+                                                  kernel,
+                                                  nCors,
+                                                  runParamEst,
+                                                  alpha=alpha,
+                                                  strat=fs,
+                                                  numFeat=desFeat)
+
+        # Store the output in the output Dictionary for networks
+        result = (withinResult, betweenResult)
+        networkResults[network] = result
+        trainResult = (withinTrainDict, betweenTrainDict)
+        networkTrainResults[network] = trainResult
+
+    status = saveOutput(pathToPredictionOutputFile, networkResults)
+    status = saveOutput(pathToTrainOutputFile, networkTrainResults)
+    print(status)
+
+    if doPlot:
+        # Done with running analysis. Plotting by network now
+        networkPlot(networkResults)
+        for network in networkTrainResults:
+            print('Plotting training on ' + network + '\n'
+                  + stratStr)
+            (withinTrainDict, betweenTrainDict) = networkTrainResults[network]
+            trainPlot(withinTrainDict, betweenTrainDict)
+
     pass
 
 
