@@ -534,7 +534,7 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
         testFeature, testAge = testTuple
 
         # Get the number of features
-        numFeat = trainFeature.shape[1]
+        numberFeat = trainFeature.shape[1]
 
         # First run feature selection
         featIndex = findFeatures(trainFeature, trainAge,
@@ -595,7 +595,7 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
                   + '    pred: ' + str(predAgeVec.shape))
         print('    bestC: ' + str(bestC) + '\n'
               + '    bestE: ' + str(bestE) + '\n'
-              + '    feat: ' + str(keptFeat) + ' / ' + str(numFeat) + '\n'
+              + '    feat: ' + str(keptFeat) + ' / ' + str(numberFeat) + '\n'
               + 'parameter selection took: ' + str(elapsedParam) + ' s\n'
               + 'model fitting took: ' + str(elapsedModel) + ' s\n'
               + 'in total took: ' + str(elapsedFull) + ' s')
@@ -822,6 +822,29 @@ def trainPlot(withinDict, betweenDict=None):
             break
 
 
+def runMean():
+    '''
+    Method that runs on the mean connectivity, separated by within and between
+    '''
+    pass
+
+
+def runBrain():
+    '''
+    Method that runs on whole brain connectivity
+    '''
+    pass
+
+
+def runNetwork():
+    '''
+    Method that runs on network based connectivity
+    '''
+    pass
+
+
+
+
 def saveOutput(outputFilePath, output):
     f = gzip.open(outputFilePath, 'wb')
     cPickle.dump(output, f)
@@ -850,6 +873,7 @@ def Main():
     runParamEst = True
     takeFeat = 'brain'
     doPlot = True
+    doPermute = False
     which = 'wave'
     fs = 'rfe'
     alpha = 0.2
@@ -865,16 +889,17 @@ def Main():
 
     print(stratStr)
 
-    pathToPredictionOutputFile = '/home2/surchs/secondLine/SVM/wave/dos160/emp_' + stratStr + '_SVR.pred'
-    pathToTrainOutputFile = '/home2/surchs/secondLine/SVM/wave/dos160/emp_' + stratStr + '_SVR.train'
+    pathToOutputFile = '/home2/surchs/secondLine/SVM/wave/dos160/emp_' + stratStr + '_SVR'
+    pathToTrainOutputFile = pathToOutputFile + '.train'
+    pathToPredictionOutputFile = pathToOutputFile + '.pred'
+    pathToPermutationOutputFile = pathToOutputFile + '.permut'
 
     # Check the fucking paths
     if  (not which in pathToConnectomeDir or
          not which in  pathToPhenotypicFile or
          not which in pathToSubjectList or
          not which in pathToRoiMask or
-         not which in pathToPredictionOutputFile or
-         not which in pathToTrainOutputFile):
+         not which in pathToOutputFile):
         message = 'Your paths are bad!'
         raise Exception(message)
     else:
