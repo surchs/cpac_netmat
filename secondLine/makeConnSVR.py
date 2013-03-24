@@ -1020,7 +1020,6 @@ def runBrain(connectomeStack, ageStack, crossVal):
         # just the other stuff
         result, trainDict = svrResult
 
-
     if doPlot:
         singlePlot(result, 'whole brain SVR plot')
         trainPlot(trainDict)
@@ -1047,7 +1046,7 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
     '''
     # Prepare containers
     networkResults = {}
-    networkWeights = {}
+    weightMat = np.zeros_like(connectomeStack[..., 0])
     networkTrainResults = {}
 
     for i, network in enumerate(networkNodes.keys()):
@@ -1109,8 +1108,31 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
 
         if kernel == 'linear':
             # unpack the weight vector as well
-            withinResult, withinTrainDict, weightVec = svrWithin
-            betweenResult, betweenTrainDict, weightVec = svrBetween
+            withinResult, withinTrainDict, withinWeightVec = svrWithin
+            betweenResult, betweenTrainDict, betweenWeightVec = svrBetween
+            # Start mapping back the features,
+            # within first
+            netWeightRows = weightMat[networkIndex]
+
+            netWithinMat = netWeightRows[:, networkIndex]
+            # Make a within network mask for the lower triangle
+            netWithinMask = np.ones_like(netWithinMat)
+            netWithinMask = np.tril(netWithinMask, -1)
+            # Put the within weights in the within matrix
+            netWithinMat[netWithinMask == 1] = withinWeightVec
+
+            # Now for between weights
+            # reshape the between weight vector
+            netBetweenMat = betweenWeightVec.reshape(betweenRows,
+                                                     betweenCols)
+
+            # And store both back into the weight matrix
+            netWeightRows[:, networkIndex] = netWithinMat
+            netWeightRows[:, betweenIndex] = netBetweenMat
+            # And now back into the full matrix
+            weightMat[networkIndex] = netWeightRows
+            # And done!
+
         else:
             # just the other stuff
             withinResult, withinTrainDict = svrWithin
@@ -1127,6 +1149,9 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
         print(status)
         status = saveOutput(pathToTrainOutputFile, networkTrainResults)
         print(status)
+        if kernel == 'linear':
+            status = saveTextFile(pathToWeightMatrixFile, weightMat)
+            print(status)
 
     if doPlot:
         # Done with running analysis. Plotting by network now
