@@ -4,6 +4,7 @@ Created on Feb 22, 2013
 @author: surchs
 '''
 import os
+import sys
 import gzip
 import time
 import cPickle
@@ -211,6 +212,10 @@ def glmFeature(trainFeature, trainAge):
     '''
     # Get the number of features
     numberOfFeatures = trainFeature.shape[1]
+    # Generate the regressor matrix
+    regressor = np.concatenate((trainAge[..., None],
+                                np.ones_like(trainAge)[..., None]),
+                               axis=1)
 
     tVector = np.array([])
     pVector = np.array([])
@@ -323,19 +328,23 @@ def computeFDR(pValueVector, alpha):
     # the index numP because it would be the last entry in the sorted vector)
     indexP = np.arange(numP, 0, -1)
     # Create test vector of (index of p value / number of p values) * alpha
+    print('fdron')
     test = indexP / numP * alpha
+    print('fdroff')
     # Check where p-value <= test
     testIndex = np.where(reverseP <= test)
     if testIndex[0].size == 0:
-        print('None of you p values pass FDR correction')
+        # print('None of you p values pass FDR correction')
         pFDR = 0
     else:
         # Get the first p value that passes the criterion
         pFDR = reverseP[np.min(testIndex)]
+        '''
         print('FDR corrected p value for alpha of ' + str(alpha) + ' is '
               + str(pFDR)
               + '\n' + str(testIndex[0].size) + ' out of '
               + str(int(numP)) + ' p-values pass this threshold')
+        '''
 
     return pFDR
 
@@ -362,20 +371,23 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
         'rfecv'   - rfe with cross validation, have to define a max feature
     '''
     numberOfFeatures = trainFeature.shape[1]
-    maxFeatRFE = 3000
+    maxFeatRFE = 2000
+    pThresh = 0.05
 
     if str(strat) == 'corr':
         rVector, pVector = corrFeature(trainFeature, trainAge)
         # Get the FDR p-cutoff
-        pThresh = computeFDR(pVector, alpha)
+        # pThresh = computeFDR(pVector, alpha)
         pIndex = threshold(pVector, pThresh)
         # turn the index into a feature index
         featIndex = pIndex
 
     elif str(strat) == 'glm':
+        print('start glm')
         tVector, pVector = glmFeature(trainFeature, trainAge)
+        print('done glm')
         # Get the FDR p-cutoff
-        pThresh = computeFDR(pVector, alpha)
+        # pThresh = computeFDR(pVector, alpha)
         pIndex = threshold(pVector, pThresh)
         # turn the index into a feature index
         featIndex = pIndex
@@ -383,7 +395,7 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
     elif str(strat) == 'ttest':
         tVector, pVector = ttestFeature(trainFeature, trainAge)
         # Get the FDR p-cutoff
-        pThresh = computeFDR(pVector, alpha)
+        # pThresh = computeFDR(pVector, alpha)
         pIndex = threshold(pVector, pThresh)
         # turn the index into a feature index
         featIndex = pIndex
@@ -397,8 +409,8 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
             firstIndex = rfeFeature(trainFeature, trainAge,
                                     maxFeatRFE, kernel=kernel)
             # Cut the features down
-            rfeFeature = trainFeature[:, firstIndex]
-            secondIndex = rfecvFeature(rfeFeature, trainAge, kernel='linear')
+            firstFeature = trainFeature[:, firstIndex]
+            secondIndex = rfecvFeature(firstFeature, trainAge, kernel=kernel)
             # Now we have to get the second index to the length of the first
             tempIndex = np.zeros_like(firstIndex, dtype=int)
             tempIndex[firstIndex[secondIndex]] = 1
@@ -406,6 +418,10 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
             featIndex = tempIndex == 1
         else:
             featIndex = rfecvFeature(trainFeature, trainAge, kernel='linear')
+
+    elif str(strat) == 'None':
+        firstIndex = np.ones(numberOfFeatures)
+        featIndex = firstIndex == 1
 
     else:
         message = ('Your strategy (' + str(strat)
@@ -495,7 +511,8 @@ def testModel(model, testFeature):
     return predictedAge
 
 
-def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst):
+def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
+            strat=None, numFeat=200):
     '''
     short method to handle all the steps in the SVR
     '''
@@ -515,23 +532,41 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst):
         trainFeature, trainAge = trainTuple
         testFeature, testAge = testTuple
 
+        # Get the number of features
+        numFeat = trainFeature.shape[1]
+
+        # First run feature selection
+        featIndex = findFeatures(trainFeature, trainAge,
+                                 strat, kernel='linear',
+                                 numFeat=numFeat, alpha=alpha)
+
+        # Get number of retained Features
+        keptFeat = np.sum(featIndex)
+
+        # Now reduce the features with this index
+        selectTrainFeat = trainFeature[:, featIndex]
+        selectTestFeat = testFeature[:, featIndex]
+
         # Get the best parameters for this training set
+        print('paramon')
         if runParamEst:
-            bestC, bestE = findParameters(trainFeature, trainAge, kernel, nCors)
+            bestC, bestE = findParameters(selectTrainFeat, trainAge,
+                                          kernel, nCors)
         else:
             bestC = 20.0
             bestE = 0.001
 
         paramStop = time.time()
+        print('paramoff')
 
         # Train model on train data
         modelstart = time.time()
-        model = trainModel(trainFeature, trainAge, kernel, bestC, bestE)
+        model = trainModel(selectTrainFeat, trainAge, kernel, bestC, bestE)
         modelstop = time.time()
         # Test model on test data
-        predictedAge = testModel(model, testFeature)
+        predictedAge = testModel(model, selectTestFeat)
         # Test model on train data - for sanity check
-        trainPredict = testModel(model, trainFeature)
+        trainPredict = testModel(model, selectTrainFeat)
         trainOut = np.concatenate((trainAge[..., None],
                                    trainPredict[..., None]),
                                   axis=1)
@@ -559,6 +594,7 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst):
                   + '    pred: ' + str(predAgeVec.shape))
         print('    bestC: ' + str(bestC) + '\n'
               + '    bestE: ' + str(bestE) + '\n'
+              + '    feat: ' + str(keptFeat) + ' / ' + str(numFeat) + '\n'
               + 'parameter selection took: ' + str(elapsedParam) + ' s\n'
               + 'model fitting took: ' + str(elapsedModel) + ' s\n'
               + 'in total took: ' + str(elapsedFull) + ' s')
@@ -643,6 +679,7 @@ def dualPlot(resultWithin, resultBetween, title):
     bFit = np.polyval(bP, xnew)
 
     withinCorr, withinP = st.pearsonr(wTrue, wPred)
+    wMSE = np.mean(np.square(wTrue - wPred))
     within.plot(wTrue, wPred, 'k.')
     within.plot(xnew, WrobustFit, 'r', label=('robust '
                                               + str(np.round(WrobustSlope, 2))
@@ -657,6 +694,7 @@ def dualPlot(resultWithin, resultBetween, title):
     within.legend()
 
     betweenCorr, betweenP = st.pearsonr(bTrue, bPred)
+    bMSE = np.mean(np.square(bTrue - bPred))
     between.plot(bTrue, bPred, 'k.')
     between.plot(xnew, BrobustFit, 'r', label=('robust '
                                                + str(np.round(BrobustSlope, 2))
@@ -671,10 +709,12 @@ def dualPlot(resultWithin, resultBetween, title):
 
     within.set_title('within ('
                      + str(np.round(withinCorr, 2)) + ', '
-                     + str(np.round(withinP, 3)) + ')')
+                     + str(np.round(withinP, 3)) + ') '
+                     + str(np.round(wMSE, 2)))
     between.set_title('between ('
                       + str(np.round(betweenCorr, 2)) + ', '
-                      + str(np.round(betweenP, 3)) + ')')
+                      + str(np.round(betweenP, 3)) + ') '
+                      + str(np.round(bMSE, 2)))
 
     fig.suptitle(title)
     plt.show()
@@ -724,6 +764,7 @@ def singlePlot(result, title):
 
     # prepare
     corr, p = st.pearsonr(true, pred)
+    mse = np.mean(np.square(true - pred))
     xnew = np.arange(true.min() - 1, true.max() + 1, 0.1)
     robustFit = robustSlope * xnew + robustIntercept
     glmFit = glmSlope * xnew + glmIntercept
@@ -741,7 +782,8 @@ def singlePlot(result, title):
     plt.legend()
     plt.title(title + ' ('
               + str(np.round(corr, 2)) + ', '
-              + str(np.round(p, 3)) + ')')
+              + str(np.round(p, 3)) + ') '
+              + str(np.round(mse, 2)))
     plt.show()
     userIn = raw_input("Press Enter or break...\n")
     plt.close()
@@ -790,36 +832,40 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
-    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
-    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
-    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
+    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/wave/dos160'
+    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/wave/wave_pheno81_uniform.csv'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/wave/wave_subjectList.csv'
 
     pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
-    pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
+    pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_wave_81_3mm.nii.gz'
 
-    connectomeSuffix = '_connectome_glob_corr.txt'
+    connectomeSuffix = '_connectome_glob.txt'
 
     # Define parameters
     doCV = 'kfold'
     kfold = 10
-    nCors = 15
-    kernel = 'rbf'
+    nCors = 5
+    kernel = 'linear'
     runParamEst = True
     takeFeat = 'brain'
     doPlot = True
-    which = 'abide'
+    which = 'wave'
+    fs = 'rfe'
+    alpha = 0.2
+    desFeat = 200
 
     stratStr = (doCV
                 + '_' + str(kfold)
                 + '_' + kernel
                 + '_' + str(runParamEst)
+                + '_' + str(fs)
                 + '_' + takeFeat
                 + '_' + os.path.splitext(connectomeSuffix)[0])
 
     print(stratStr)
 
-    pathToPredictionOutputFile = '/home2/surchs/secondLine/SVM/abide/dos160/emp_' + stratStr + '_SVR.pred'
-    pathToTrainOutputFile = '/home2/surchs/secondLine/SVM/abide/dos160/emp_' + stratStr + '_SVR.train'
+    pathToPredictionOutputFile = '/home2/surchs/secondLine/SVM/wave/dos160/emp_' + stratStr + '_SVR.pred'
+    pathToTrainOutputFile = '/home2/surchs/secondLine/SVM/wave/dos160/emp_' + stratStr + '_SVR.train'
 
     # Check the fucking paths
     if  (not which in pathToConnectomeDir or
@@ -882,7 +928,7 @@ def Main():
         subject = subject.strip()
         phenoSubject = phenoSubjects[i]
         # Workaround for dumb ass pandas
-        phenoSubject = ('00' + str(phenoSubject))
+        # phenoSubject = ('00' + str(phenoSubject))
 
         if not subject == phenoSubject:
             raise Exception('The Phenofile returned a different subject name '
@@ -901,8 +947,8 @@ def Main():
         if np.isnan(connectome).any():
             print(subject + ' has nan in the connectome!')
 
-        # normalizedConnectome = fisherZ(connectome)
-        normalizedConnectome = connectome
+        normalizedConnectome = fisherZ(connectome)
+        # normalizedConnectome = connectome
         # Get the mean connectivity
         uniqueConnections = getUniqueMatrixElements(normalizedConnectome)
         meanConn = np.mean(uniqueConnections)
@@ -978,7 +1024,10 @@ def Main():
                                                     crossVal,
                                                     kernel,
                                                     nCors,
-                                                    runParamEst)
+                                                    runParamEst,
+                                                    alpha=alpha,
+                                                    strat=fs,
+                                                    numFeat=desFeat)
             print('\nRunning between ' + network + ' connectivity SVR ('
                   + str(i) + '/' + str(len(networkNodes.keys())) + ')')
             betweenResult, betweenTrainDict = mainSVR(betweenFeature,
@@ -986,7 +1035,10 @@ def Main():
                                                       crossVal,
                                                       kernel,
                                                       nCors,
-                                                      runParamEst)
+                                                      runParamEst,
+                                                      alpha=alpha,
+                                                      strat=fs,
+                                                      numFeat=desFeat)
 
             # Store the output in the output Dictionary for networks
             result = (withinResult, betweenResult)
@@ -1020,13 +1072,19 @@ def Main():
                                                 crossVal,
                                                 kernel,
                                                 nCors,
-                                                runParamEst)
+                                                runParamEst,
+                                                alpha=alpha,
+                                                strat=fs,
+                                                numFeat=desFeat)
         betweenResult, betweenTrainDict = mainSVR(betweenFeature,
                                                   ageStack,
                                                   crossVal,
                                                   kernel,
                                                   nCors,
-                                                  runParamEst)
+                                                  runParamEst,
+                                                  alpha=alpha,
+                                                  strat=fs,
+                                                  numFeat=desFeat)
         if doPlot:
             print('Plotting what we actually wanted...\n'
                   + stratStr)
@@ -1063,7 +1121,10 @@ def Main():
                                     crossVal,
                                     kernel,
                                     nCors,
-                                    runParamEst)
+                                    runParamEst,
+                                    alpha=alpha,
+                                    strat=fs,
+                                    numFeat=desFeat)
 
         if doPlot:
             singlePlot(result, 'whole brain SVR plot')

@@ -32,8 +32,10 @@ def getTimeSeries(args):
     for roi in roiElements:
         # Extract the timeseries from the func file
         timeSeries = funcData[roiData == roi]
+        print('ts shape: ' + str(timeSeries.shape))
         # Average the extracted timeseries across voxels (axis 0)
         averageTimeSeries = np.average(timeSeries, axis=0)
+        print('avg ts shape: ' + str(averageTimeSeries.shape))
         # Append current ROIs timeseries to timeseries matrix
         if timeSeriesMatrix.size == 0:
             # First set up container for first use
@@ -48,15 +50,15 @@ def getTimeSeries(args):
 
 def Main():
     # Define input files
-    pathToSubjectFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
-    pathToFuncFile = '/home2/surchs/secondLine/configs/abide/pathsToFuncFiles_abide_global.csv'
-    pathToRoiFile = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
+    pathToSubjectFile = '/home2/surchs/secondLine/configs/wave/wave_subjectList.csv'
+    pathToFuncFile = '/home2/surchs/secondLine/configs/wave/pathsToFuncFiles_wave.csv'
+    pathToRoiFile = '/home2/surchs/secondLine/masks/dos160_wave_81_3mm.nii.gz'
 
     # Define parameters
     nProcs = 15
 
     # Define output files
-    outputDirectory = '/home2/surchs/secondLine/timeseries/abide/dos160'
+    outputDirectory = '/home2/surchs/secondLine/tests/timeseries/mystuff'
     subjectTimeSeriesSuffix = '_timeseries_glob.txt'
 
     # Read the input files

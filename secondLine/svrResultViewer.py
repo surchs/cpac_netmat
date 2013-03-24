@@ -629,10 +629,10 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
-    pathToNetworkResults = '/home2/surchs/secondLine/SVM/abide/dos160/emp_kfold_10_rbf_True_brain__connectome_glob_SVR.pred'
-    pathToTrainingResults = '/home2/surchs/secondLine/SVM/abide/dos160/emp_kfold_10_rbf_True_brain__connectome_glob_SVR.train'
+    pathToNetworkResults = '/home2/surchs/secondLine/SVM/wave/dos160/emp_kfold_10_linear_True_corr_brain__connectome_glob_SVR.pred'
+    pathToTrainingResults = '/home2/surchs/secondLine/SVM/wave/dos160/emp_kfold_10_linear_True_corr_brain__connectome_glob_SVR.train'
 
-    pathToOutputDir = '/home2/surchs/secondLine/images/SVR/empirical/abide'
+    pathToOutputDir = '/home2/surchs/secondLine/images/SVR/empirical/wave'
     stratName = os.path.splitext(os.path.basename(pathToNetworkResults))[0]
     imageDir = os.path.join(pathToOutputDir, stratName)
 

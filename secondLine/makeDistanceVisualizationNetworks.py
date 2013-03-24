@@ -47,9 +47,7 @@ def getUniqueMatrixElements(squareMatrix):
     return uniqueElements
 
 
-def threshold(inputMatrix):
-    # Define threshold
-    thresh = 1
+def threshold(inputMatrix, thresh=0):
     # Prepare empty matrix
     emptyMatrix = np.zeros_like(inputMatrix, dtype=int)
     # Set empty matrix to one where input passes threshold
@@ -188,16 +186,19 @@ def saveNumpyTextFile(outputFilePath, outputMatrix):
 
 def Main():
     # Define inputs
-    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/abide/dos160/glm_thresholded_matrix_glob_corr.txt'
+    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/testing/dos160/glm_matrix_glob_corr.txt'
     pathToDistancesMatrix = '/home2/surchs/secondLine/roiDistances/dos160abide246_3mm_distances.txt'
-    pathToPvaluesMatrix = '/home2/surchs/secondLine/correlation/abide/dos160/glm_pvalue_matrix_glob_corr.txt'
+    pathToPvaluesMatrix = '/home2/surchs/secondLine/correlation/testing/dos160/glm_pvalue_matrix_glob_corr.txt'
     pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
     pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
-    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/wave/wave_subjectList.csv'
 
     # Define Outputs
     pathToPositiveAgeDistances = '/home2/surchs/secondLine/correlation/group_distances_age_pos_plevel.txt'
     pathToNegativeAgeDistances = '/home2/surchs/secondLine/correlation/group_distances_age_neg_plevel.txt'
+
+    # Define parameters
+    thresh = 0.0001
 
     # Read inputs
     ageConnectivityMatrix = loadNumpyTextFile(pathToAgeConnectivtyMatrix)
@@ -215,7 +216,14 @@ def Main():
     uniqueRoi = np.unique(roiData[roiData != 0])
 
     # Generate the threshold matrix
-    thresholdMatrix = threshold(pvaluesMatrix)
+    thresholdMatrix = threshold(pvaluesMatrix, thresh=thresh)
+    # Check the pvalues
+    uniquePValues = getUniqueMatrixElements(pvaluesMatrix)
+    uniquePValues = uniquePValues[uniquePValues != 0]
+    plt.hist(-np.log10(uniquePValues[uniquePValues < thresh]))
+    plt.title('pvalues < ' + str(thresh))
+    plt.show()
+    plt.close()
 
     # #
     # Plot the results for the network analysis
@@ -223,6 +231,7 @@ def Main():
 
     # Loop through all the networks and get within and between connectivity
     # separately
+    '''
     for network in networkNodes.keys():
         print('plotting network ' + network)
         netNodes = networkNodes[network]
@@ -278,6 +287,7 @@ def Main():
         dualPlotDistances(positiveEffectWithin, negativeEffectWithin,
                           positiveEffectBetween, negativeEffectBetween,
                           network)
+    '''
 
     # #
     # Plot the results for the global analysis
@@ -287,6 +297,9 @@ def Main():
     uniqueConnections = getUniqueMatrixElements(ageConnectivityMatrix)
     uniqueDistances = getUniqueMatrixElements(distancesMatrix)
     uniqueThresholds = getUniqueMatrixElements(thresholdMatrix)
+
+    print('\n\nThis many thresholds survive: '
+         + str(np.sum(uniqueThresholds)) + '\n\n')
 
     # Get the distances
     (positiveEffectDistances,

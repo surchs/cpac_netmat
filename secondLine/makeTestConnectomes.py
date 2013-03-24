@@ -67,8 +67,8 @@ def makeConnectome(pathToOutputDir, pathToSubjectPheno, pathToSubjectList):
         ageArray = np.append(ageArray, subAge)
 
         # Create noise
-        connNoise = np.random.normal(0, 0.05, numConns)
-        ageNoise = np.random.normal(0, 0.01, numConns)
+        connNoise = np.random.normal(0, 0.005, numConns)
+        ageNoise = np.random.normal(0, 0.001, numConns)
 
         # Make the subjects connectome with noise
         subjectConn = (connArray + connNoise) + (subAge * ageEffect + ageNoise)
@@ -80,7 +80,7 @@ def makeConnectome(pathToOutputDir, pathToSubjectPheno, pathToSubjectList):
 
         # create subject name
         subName = ('sub_' + str(run))
-        fileName = (subName + '_noisy.txt')
+        fileName = (subName + '_clean.txt')
         filePath = os.path.join(pathToOutputDir, fileName)
         # save the connectome
         saveConnectome(template, filePath)
@@ -127,9 +127,9 @@ def makeConnectome(pathToOutputDir, pathToSubjectPheno, pathToSubjectList):
 
 def Main():
     # Define outputs
-    pathToOutputDir = '/home/sebastian/Projects/secondLine/connectome/testing'
-    pathToSubjectPheno = '/home/sebastian/Projects/secondLine/config/sub100pheno.csv'
-    pathToSubjectList = '/home/sebastian/Projects/secondLine/config/subjectList.csv'
+    pathToOutputDir = '/home2/surchs/secondLine/connectomes/testing'
+    pathToSubjectPheno = '/home2/surchs/secondLine/configs/testing/sub100pheno.csv'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/testing/subjectList.csv'
 
     # Run the connectome generator
     connectomeStack, ageStack = makeConnectome(pathToOutputDir,

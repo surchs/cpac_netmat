@@ -320,7 +320,7 @@ def Main():
 
     connectomeSuffix = '_connectome_glob.txt'
 
-    runwhat = 'ttest'
+    runwhat = 'corr'
     doPlot = False
 
     # Define parameters
@@ -587,12 +587,15 @@ def Main():
     print('Minimal pvalue: ' + str(independentPValues.min()))
 
     # Compute threshold p value with FDR
-    pThresh = computeFDR(independentPValues, alpha)
+    # pThresh = computeFDR(independentPValues, alpha)
+    pThresh = alpha
 
     # Threshold the pValueMatrix with FDR
     thresholdedRegressorMatrix = thresholdRegressorMatrix(regressorMatrix,
-                                                            pValueMatrix,
-                                                            pThresh)
+                                                          pValueMatrix,
+                                                          pThresh)
+
+    print('survivors: ' + str(np.sum(thresholdedRegressorMatrix)))
 
     # Here, we could re-run the analysis for the different age groups but I
     # am currently not doing this because Damien Fair just did it for the whole
