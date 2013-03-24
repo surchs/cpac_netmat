@@ -522,6 +522,7 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
     trainDict = {}
     testAgeVec = np.array([])
     predAgeVec = np.array([])
+    tempFeatVec = np.zeros_like(feature[0, :])
 
     for i, run in enumerate(crossValDict.keys()):
         start = time.time()
@@ -541,6 +542,8 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
         featIndex = findFeatures(trainFeature, trainAge,
                                  strat, kernel='linear',
                                  numFeat=numFeat, alpha=alpha)
+
+        tempFeatVec[featIndex] += 1
 
         # Get number of retained Features
         keptFeat = np.sum(featIndex)
@@ -602,6 +605,8 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
                   + 'in total took: ' + str(elapsedFull) + ' s')
 
     # Done, stack the output together (true age first, then predicted)
+    if not doPermute:
+        print(str(np.max(tempFeatVec)) + ' consensus')
     outputMatrix = np.concatenate((testAgeVec[..., None],
                                    predAgeVec[..., None]),
                                   axis=1)
@@ -1178,6 +1183,15 @@ def runPermute(runwhat, numPermute, connectomeStack, ageStack, networkNodes,
         raise Exception(message)
 
     return permutationDict
+
+
+def getWeights(weightVector):
+    '''
+    Method to get the weights back into the connectome matrix and save them
+    '''
+
+
+    pass
 
 
 def saveOutput(outputFilePath, output):
