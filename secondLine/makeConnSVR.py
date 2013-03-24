@@ -7,6 +7,7 @@ import os
 import sys
 import gzip
 import time
+import copy
 import cPickle
 import numpy as np
 import pandas as pa
@@ -522,7 +523,10 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
     trainDict = {}
     testAgeVec = np.array([])
     predAgeVec = np.array([])
-    tempFeatVec = np.zeros_like(feature[0, :])
+    featureTemplate = np.zeros_like(feature[0, :])
+    countFeatVec = copy.deepcopy(featureTemplate)
+    # Container for the weights
+    weightMat = np.array([])
 
     for i, run in enumerate(crossValDict.keys()):
         start = time.time()
@@ -543,7 +547,7 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
                                  strat, kernel='linear',
                                  numFeat=numFeat, alpha=alpha)
 
-        tempFeatVec[featIndex] += 1
+        countFeatVec[featIndex] += 1
 
         # Get number of retained Features
         keptFeat = np.sum(featIndex)
@@ -566,6 +570,20 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
         modelstart = time.time()
         model = trainModel(selectTrainFeat, trainAge, kernel, bestC, bestE)
         modelstop = time.time()
+        if kernel == 'linear':
+            # Get the coefficient weights
+            tempWeight = copy.deepcopy(featureTemplate)
+            weights = model.coef_
+            tempWeight[featIndex] = weights
+            stackWeight = tempWeight[None, ...]
+            # Stack the weights
+            if weightMat.size == 0:
+                # initialize
+                weightMat = stackWeight
+            else:
+                weightMat = np.concatenate((weightMat, stackWeight),
+                                           axis=0)
+
         # Test model on test data
         predictedAge = testModel(model, selectTestFeat)
         # Test model on train data - for sanity check
@@ -605,14 +623,21 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
                   + 'in total took: ' + str(elapsedFull) + ' s')
 
     # Done, stack the output together (true age first, then predicted)
-    if not doPermute:
-        print(str(np.max(tempFeatVec)) + ' consensus / '
-              + str(len(np.where(tempFeatVec > 9)[0])))
+    # Get the features that exceed a threshold of selection
+    if kernel == 'linear':
+        weightIndex = countFeatVec > 7
+        outWeightVec = copy.deepcopy(featureTemplate)
+        outWeightVec[weightIndex] = np.mean(weightMat[:, weightIndex], axis=0)
+        if not doPermute:
+            print('# consensus features: ' + str(np.sum(weightIndex)))
     outputMatrix = np.concatenate((testAgeVec[..., None],
                                    predAgeVec[..., None]),
                                   axis=1)
-
-    return outputMatrix, trainDict
+    if kernel == 'linear':
+        return outputMatrix, trainDict, outWeightVec
+    else:
+        print('kernel is ' + str(kernel) + ' : so no features.')
+        return outputMatrix, trainDict
     # Done, return the output dictionary
     # return outputDict
 
@@ -903,24 +928,35 @@ def runMean(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
         raise Exception(message)
 
     # do the real thing
-    withinResult, withinTrainDict = mainSVR(withinFeature,
-                                            ageStack,
-                                            crossVal,
-                                            kernel,
-                                            nCors,
-                                            runParamEst,
-                                            alpha=alpha,
-                                            strat=featureSelection,
-                                            numFeat=desFeat)
-    betweenResult, betweenTrainDict = mainSVR(betweenFeature,
-                                              ageStack,
-                                              crossVal,
-                                              kernel,
-                                              nCors,
-                                              runParamEst,
-                                              alpha=alpha,
-                                              strat=featureSelection,
-                                              numFeat=desFeat)
+    svrWithin = mainSVR(withinFeature,
+                        ageStack,
+                        crossVal,
+                        kernel,
+                        nCors,
+                        runParamEst,
+                        alpha=alpha,
+                        strat=featureSelection,
+                        numFeat=desFeat)
+
+    svrBetween = mainSVR(betweenFeature,
+                         ageStack,
+                         crossVal,
+                         kernel,
+                         nCors,
+                         runParamEst,
+                         alpha=alpha,
+                         strat=featureSelection,
+                         numFeat=desFeat)
+
+    if kernel == 'linear':
+        # unpack the weight vector as well
+        withinResult, withinTrainDict, weightVec = svrWithin
+        betweenResult, betweenTrainDict, weightVec = svrBetween
+    else:
+        # just the other stuff
+        withinResult, withinTrainDict = svrWithin
+        betweenResult, betweenTrainDict = svrBetween
+
 
     # Done running, plotting now
     if doPlot:
@@ -962,17 +998,28 @@ def runBrain(connectomeStack, ageStack, crossVal):
         print('Lets do the brain!\n'
               + stratStr)
     mask = np.ones_like(connectomeStack[..., 0])
+    weightMat = np.zeros_like(connectomeStack[..., 0])
     mask = np.tril(mask, -1)
     feature = connectomeStack[mask == 1].T
-    result, trainDict = mainSVR(feature,
-                                ageStack,
-                                crossVal,
-                                kernel,
-                                nCors,
-                                runParamEst,
-                                alpha=alpha,
-                                strat=featureSelection,
-                                numFeat=desFeat)
+    svrResult = mainSVR(feature,
+                        ageStack,
+                        crossVal,
+                        kernel,
+                        nCors,
+                        runParamEst,
+                        alpha=alpha,
+                        strat=featureSelection,
+                        numFeat=desFeat)
+
+    if kernel == 'linear':
+        # unpack the weight vector as well
+        result, trainDict, weightVec = svrResult
+        # map the weights back, just in the lower triangle
+        weightMat[mask == 1] = weightVec
+    else:
+        # just the other stuff
+        result, trainDict = svrResult
+
 
     if doPlot:
         singlePlot(result, 'whole brain SVR plot')
@@ -983,8 +1030,15 @@ def runBrain(connectomeStack, ageStack, crossVal):
         print(status)
         status = saveOutput(pathToTrainOutputFile, trainDict)
         print(status)
+        if kernel == 'linear':
+            status = saveTextFile(pathToWeightMatrixFile, weightMat)
+            print(status)
 
-    return result
+    if kernel == 'linear':
+        return result, weightMat
+
+    else:
+        return result
 
 
 def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
@@ -993,6 +1047,7 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
     '''
     # Prepare containers
     networkResults = {}
+    networkWeights = {}
     networkTrainResults = {}
 
     for i, network in enumerate(networkNodes.keys()):
@@ -1029,27 +1084,37 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
         if not doPermute:
             print('\nRunning within ' + network + ' connectivity SVR ('
                   + str(i) + '/' + str(len(networkNodes.keys())) + ')')
-        withinResult, withinTrainDict = mainSVR(withinFeature,
-                                                ageStack,
-                                                crossVal,
-                                                kernel,
-                                                nCors,
-                                                runParamEst,
-                                                alpha=alpha,
-                                                strat=featureSelection,
-                                                numFeat=desFeat)
+        svrWithin = mainSVR(withinFeature,
+                            ageStack,
+                            crossVal,
+                            kernel,
+                            nCors,
+                            runParamEst,
+                            alpha=alpha,
+                            strat=featureSelection,
+                            numFeat=desFeat)
+
         if not doPermute:
             print('\nRunning between ' + network + ' connectivity SVR ('
                   + str(i) + '/' + str(len(networkNodes.keys())) + ')')
-        betweenResult, betweenTrainDict = mainSVR(betweenFeature,
-                                                  ageStack,
-                                                  crossVal,
-                                                  kernel,
-                                                  nCors,
-                                                  runParamEst,
-                                                  alpha=alpha,
-                                                  strat=featureSelection,
-                                                  numFeat=desFeat)
+        svrBetween = mainSVR(betweenFeature,
+                             ageStack,
+                             crossVal,
+                             kernel,
+                             nCors,
+                             runParamEst,
+                             alpha=alpha,
+                             strat=featureSelection,
+                             numFeat=desFeat)
+
+        if kernel == 'linear':
+            # unpack the weight vector as well
+            withinResult, withinTrainDict, weightVec = svrWithin
+            betweenResult, betweenTrainDict, weightVec = svrBetween
+        else:
+            # just the other stuff
+            withinResult, withinTrainDict = svrWithin
+            betweenResult, betweenTrainDict = svrBetween
 
         # Store the output in the output Dictionary for networks
         result = (withinResult, betweenResult)
@@ -1204,6 +1269,13 @@ def saveOutput(outputFilePath, output):
     return status
 
 
+def saveTextFile(outputFilePath, output):
+    np.savetxt(outputFilePath, output, fmt='%.12f')
+    status = ('Saving to ' + outputFilePath)
+
+    return status
+
+
 def Main():
     # Define the inputs
     pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/wave/dos160'
@@ -1233,15 +1305,16 @@ def Main():
     kernel = 'linear'
     runParamEst = True
     doPlot = False
-    doSave = False
-    featureSelection = 'rfe'
-    alpha = 0.2
+    doSave = True
+    featureSelection = 'corr'
+    alpha = 0.05
     desFeat = 200
     doPermute = False
 
     global pathToTrainOutputFile
     global pathToPredictionOutputFile
     global pathToPermutationOutputFile
+    global pathToWeightMatrixFile
     global stratStr
 
     # Define local variables
@@ -1259,18 +1332,28 @@ def Main():
 
     print(stratStr)
 
-    pathToOutputFile = ('/home2/surchs/secondLine/SVM/wave/dos160/emp_'
-                        + stratStr + '_SVR')
-    pathToTrainOutputFile = pathToOutputFile + '.train'
-    pathToPredictionOutputFile = pathToOutputFile + '.pred'
-    pathToPermutationOutputFile = pathToOutputFile + '.permut'
+    pathToDumpDir = '/home2/surchs/secondLine/SVM/wave/dos160'
+    pathToOutputDir = os.path.join(pathToDumpDir, stratStr)
+    # Check if it is there
+    if not os.path.isdir(pathToOutputDir):
+        print('Making ' + pathToOutputDir + ' now')
+        os.makedirs(pathToOutputDir)
+    outputBaseName = (stratStr + '_SVR')
+    pathToTrainOutputFile = os.path.join(pathToOutputDir,
+                                         (outputBaseName + '.train'))
+    pathToPredictionOutputFile = os.path.join(pathToOutputDir,
+                                              (outputBaseName + '.pred'))
+    pathToPermutationOutputFile = os.path.join(pathToOutputDir,
+                                               (outputBaseName + '.permut'))
+    pathToWeightMatrixFile = os.path.join(pathToOutputDir,
+                                          (outputBaseName + '.weights'))
 
     # Check the fucking paths
     if  (not which in pathToConnectomeDir or
          not which in  pathToPhenotypicFile or
          not which in pathToSubjectList or
          not which in pathToRoiMask or
-         not which in pathToOutputFile):
+         not which in pathToDumpDir):
         message = 'Your paths are bad!'
         raise Exception(message)
     else:
