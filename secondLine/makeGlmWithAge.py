@@ -328,7 +328,7 @@ def Main():
     childmax = 12.0
     adolescentmax = 18.0
     doClasses = False
-    doFDR = True
+    doFDR = False
     which = 'wave'
 
     stratStr = (str(runwhat) + '_' + str(doFDR) + '_' + str(alpha)
@@ -602,15 +602,9 @@ def Main():
     thresholdedRegressorMatrix = thresholdRegressorMatrix(regressorMatrix,
                                                           pValueMatrix,
                                                           pThresh)
+    # Show how many survived
+    print('survivors: ' + str(np.sum(thresholdedRegressorMatrix != 0)))
 
-    print('survivors: ' + str(np.sum(thresholdedRegressorMatrix)))
-
-    # Here, we could re-run the analysis for the different age groups but I
-    # am currently not doing this because Damien Fair just did it for the whole
-    # group at once
-
-    # save the outputs
-    # status = 'debug'
     status = saveOutput(pathToCorrelationMatrix, regressorMatrix)
     print('correlation matrix ' + status)
     status = saveOutput(pathToPValueMatrix, pValueMatrix)
