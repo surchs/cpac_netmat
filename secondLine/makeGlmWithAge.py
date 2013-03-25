@@ -65,6 +65,7 @@ def fisherZ(connectome):
 
     return normalizedConnectome
 
+
 def runConnections(connectomeStack, regressorStack, runwhat):
     # First I flatten the connectomeStack
     stackShape = connectomeStack.shape
@@ -142,7 +143,6 @@ def runConnections(connectomeStack, regressorStack, runwhat):
                                    (stackShape[0], stackShape[1]))
     pValueMatrix = np.reshape(pValueVector,
                               (stackShape[0], stackShape[1]))
-
 
     return regressorMatrix, pValueMatrix
 
@@ -331,7 +331,8 @@ def Main():
     doFDR = True
     which = 'wave'
 
-    stratStr = (str(runwhat) + '_' + str(doFDR) + '_' + str(alpha))
+    stratStr = (str(runwhat) + '_' + str(doFDR) + '_' + str(alpha)
+                + '_' + str(doClasses))
 
     # Define the outputs
     pathToDumpDir = '/home2/surchs/secondLine/GLM/wave/dos160'
@@ -577,32 +578,25 @@ def Main():
         raw_input('Enter to continue...')
         plt.close()
 
-
-    # Now run through the model
-    (regressorMatrix,
-     pValueMatrix) = runConnections(connectomeStack,
-                                    regressorStack,
-                                    runwhat)
+    # Now run through the model - only here btw
+    (regressorMatrix, pValueMatrix) = runConnections(connectomeStack,
+                                                     regressorStack,
+                                                     runwhat)
 
     # Compute the correlations with age
     # correlationMatrix, pValueMatrix = correlateConnectomeWithAge(connectomeStack,
     #                                                              ageStack)
 
-    # DEBUG CALL
-    '''
-    np.save(debugConnStack, connectomeStack)
-    np.save(debugCorrStack, regressorMatrix)
-    np.save(debugAgeStack, ageStack)
-    '''
-
     # Prepare FDR by pulling out the independent p values from the matrix
     independentPValues = prepareFDR(pValueMatrix)
-
     print('Minimal pvalue: ' + str(independentPValues.min()))
 
-    # Compute threshold p value with FDR
-    pThresh = computeFDR(independentPValues, alpha)
-    # pThresh = alpha
+    if doFDR:
+        # Compute threshold p value with FDR
+        pThresh = computeFDR(independentPValues, alpha)
+    else:
+        # Don't do FDR
+        pThresh = alpha
 
     # Threshold the pValueMatrix with FDR
     thresholdedRegressorMatrix = thresholdRegressorMatrix(regressorMatrix,
@@ -614,7 +608,6 @@ def Main():
     # Here, we could re-run the analysis for the different age groups but I
     # am currently not doing this because Damien Fair just did it for the whole
     # group at once
-
 
     # save the outputs
     # status = 'debug'
