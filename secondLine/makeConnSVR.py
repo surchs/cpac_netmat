@@ -384,9 +384,7 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
         featIndex = pIndex
 
     elif str(strat) == 'glm':
-        print('start glm')
         tVector, pVector = glmFeature(trainFeature, trainAge)
-        print('done glm')
         # Get the FDR p-cutoff
         # pThresh = computeFDR(pVector, alpha)
         pIndex = threshold(pVector, pThresh)
@@ -433,7 +431,7 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
     # Check if anything comes through at all
     remainingFeatures = np.sum(featIndex)
     if remainingFeatures == 0:
-        message('All features have been removed! This is uncool.')
+        message = ('All features have been removed! This is uncool.')
         raise Exception(message)
 
     return featIndex
@@ -633,10 +631,11 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
     outputMatrix = np.concatenate((testAgeVec[..., None],
                                    predAgeVec[..., None]),
                                   axis=1)
-    if kernel == 'linear':
+    if kernel == 'linear' and not doPermute:
         return outputMatrix, trainDict, outWeightVec
     else:
-        print('kernel is ' + str(kernel) + ' : so no features.')
+        if not doPermute:
+            print('kernel is ' + str(kernel) + ' : so no features.')
         return outputMatrix, trainDict
     # Done, return the output dictionary
     # return outputDict
@@ -1011,7 +1010,7 @@ def runBrain(connectomeStack, ageStack, crossVal):
                         strat=featureSelection,
                         numFeat=desFeat)
 
-    if kernel == 'linear':
+    if kernel == 'linear'  and not doPermute:
         # unpack the weight vector as well
         result, trainDict, weightVec = svrResult
         # map the weights back, just in the lower triangle
@@ -1033,7 +1032,7 @@ def runBrain(connectomeStack, ageStack, crossVal):
             status = saveTextFile(pathToWeightMatrixFile, weightMat)
             print(status)
 
-    if kernel == 'linear':
+    if kernel == 'linear' and not doPermute:
         return result, weightMat
 
     else:
@@ -1106,7 +1105,7 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
                              strat=featureSelection,
                              numFeat=desFeat)
 
-        if kernel == 'linear':
+        if kernel == 'linear' and not doPermute:
             # unpack the weight vector as well
             withinResult, withinTrainDict, withinWeightVec = svrWithin
             betweenResult, betweenTrainDict, betweenWeightVec = svrBetween
@@ -1149,7 +1148,7 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
         print(status)
         status = saveOutput(pathToTrainOutputFile, networkTrainResults)
         print(status)
-        if kernel == 'linear':
+        if kernel == 'linear' and not doPermute:
             status = saveTextFile(pathToWeightMatrixFile, weightMat)
             print(status)
 
@@ -1166,7 +1165,7 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
 
 
 def runPermute(runwhat, numPermute, connectomeStack, ageStack, networkNodes,
-              uniqueRoi, crossVal):
+               uniqueRoi, crossVal):
     '''
     Method to do permutation testing. Return a matrix of:
         2 (true, predicted)
@@ -1330,11 +1329,11 @@ def Main():
     kernel = 'linear'
     runParamEst = True
     doPlot = False
-    doSave = True
-    featureSelection = 'corr'
+    doSave = False
+    featureSelection = 'glm'
     alpha = 0.05
     desFeat = 200
-    doPermute = False
+    doPermute = True
 
     global pathToTrainOutputFile
     global pathToPredictionOutputFile
@@ -1343,7 +1342,7 @@ def Main():
     global stratStr
 
     # Define local variables
-    runwhat = 'brain'
+    runwhat = 'network'
     numPermute = 100
     which = 'wave'
 

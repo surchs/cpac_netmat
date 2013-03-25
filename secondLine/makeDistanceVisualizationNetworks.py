@@ -186,11 +186,11 @@ def saveNumpyTextFile(outputFilePath, outputMatrix):
 
 def Main():
     # Define inputs
-    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/testing/dos160/glm_matrix_glob_corr.txt'
-    pathToDistancesMatrix = '/home2/surchs/secondLine/roiDistances/dos160abide246_3mm_distances.txt'
-    pathToPvaluesMatrix = '/home2/surchs/secondLine/correlation/testing/dos160/glm_pvalue_matrix_glob_corr.txt'
+    pathToAgeConnectivtyMatrix = '/home2/surchs/secondLine/correlation/wave/dos160/glm_matrix_glob_a_uncorr.txt'
+    pathToDistancesMatrix = '/home2/surchs/secondLine/roiDistances/dos160wave_distances.txt'
+    pathToPvaluesMatrix = '/home2/surchs/secondLine/correlation/wave/dos160/glm_pvalue_matrix_glob_a_uncorr.txt'
     pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
-    pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
+    pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_wave_81_3mm.nii.gz'
     pathToSubjectList = '/home2/surchs/secondLine/configs/wave/wave_subjectList.csv'
 
     # Define Outputs
@@ -198,7 +198,7 @@ def Main():
     pathToNegativeAgeDistances = '/home2/surchs/secondLine/correlation/group_distances_age_neg_plevel.txt'
 
     # Define parameters
-    thresh = 0.0001
+    thresh = 0.05
 
     # Read inputs
     ageConnectivityMatrix = loadNumpyTextFile(pathToAgeConnectivtyMatrix)

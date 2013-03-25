@@ -503,12 +503,12 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
-    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
-    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
-    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
+    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/wave/dos160'
+    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/wave/wave_pheno81_uniform.csv'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/wave/wave_subjectList.csv'
 
     pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
-    pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_abide_246_3mm.nii.gz'
+    pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_wave_81_3mm.nii.gz'
 
     connectomeSuffix = '_connectome_glob.txt'
 
@@ -518,8 +518,9 @@ def Main():
     nCors = 5
     kernel = 'rbf'
     runParamEst = True
-    takeFeat = 'brain'
-    doPlot = True
+    which = 'brain'
+    doPlot = False
+    what = 'wave'
 
     childmax = 12.0
     adolescentmax = 18.0
@@ -528,13 +529,35 @@ def Main():
                 + '_' + str(kfold)
                 + '_' + kernel
                 + '_' + str(runParamEst)
-                + '_' + takeFeat
+                + '_' + which
                 + '_' + os.path.splitext(connectomeSuffix)[0])
 
     print(stratStr)
 
-    pathToPredictionOutputFile = '/home2/surchs/secondLine/SVM/abide/dos160/emp_' + stratStr + '_SVC.pred'
-    pathToTrainOutputFile = '/home2/surchs/secondLine/SVM/abide/dos160/emp_' + stratStr + '_SVC.train'
+    pathToDumpDir = '/home2/surchs/secondLine/SVC/wave/dos160'
+    pathToOutputDir = os.path.join(pathToDumpDir, stratStr)
+    # Check if it is there
+    if not os.path.isdir(pathToOutputDir):
+        print('Making ' + pathToOutputDir + ' now')
+        os.makedirs(pathToOutputDir)
+
+    # Basename
+    outputBaseName = (stratStr + '_SVC')
+    pathToPredictionOutputFile = os.path.join(pathToOutputDir,
+                                              (outputBaseName + '.pred'))
+    pathToTrainOutputFile = os.path.join(pathToOutputDir,
+                                         (outputBaseName + '.train'))
+
+    # Check the fucking paths
+    if  (not what in pathToConnectomeDir or
+         not what in pathToPhenotypicFile or
+         not what in pathToSubjectList or
+         not what in pathToRoiMask or
+         not what in pathToDumpDir):
+        message = 'Your paths are bad!'
+        raise Exception(message)
+    else:
+        print('Your paths are ok.')
 
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
@@ -567,7 +590,7 @@ def Main():
         subject = subject.strip()
         phenoSubject = phenoSubjects[i]
         # Workaround for dumb ass pandas
-        phenoSubject = ('00' + str(phenoSubject))
+        # phenoSubject = ('00' + str(phenoSubject))
 
         if not subject == phenoSubject:
             raise Exception('The Phenofile returned a different subject name '
@@ -697,7 +720,7 @@ def Main():
     # Now we have the connectome stack
     # Let's loop through the networks again
     for i, network in enumerate(networkNodes.keys()):
-        if takeFeat == 'brain':
+        if which == 'brain':
             # Leave it alone
             print('Looking for whole brain here...')
             continue
@@ -731,7 +754,7 @@ def Main():
         meanBetween = np.average(betweenMatrix, axis=0)
 
         # Make feature for SVR
-        if takeFeat == 'conn':
+        if which == 'network':
             withinFeature = withinMatrix.T
             betweenFeature = betweenMatrix.T
         else:
@@ -749,7 +772,7 @@ def Main():
                                                  meanBetween[..., None]),
                                                 axis=1)
 
-        if takeFeat == 'conn':
+        if which == 'network':
             # Run SVR
             print('\nRunning within ' + network + ' connectivity SVR ('
                   + str(i) + '/' + str(len(networkNodes.keys())) + ')')
@@ -776,7 +799,7 @@ def Main():
             trainResult = (withinTrainDict, betweenTrainDict)
             networkTrainResults[network] = trainResult
 
-    if takeFeat == 'mean':
+    if which == 'mean':
         print('Doing the mean!')
         # Check if the features are ok
         print('Age: ' + str(ageStack.shape))
@@ -836,7 +859,7 @@ def Main():
         status = saveOutput(pathToPredictionOutputFile, testSaveTuple)
         status = saveOutput(pathToTrainOutputFile, trainSaveTuple)
 
-    if takeFeat == 'brain':
+    if which == 'brain':
         print('Lets do the brain!\n'
               + stratStr)
         mask = np.ones_like(connectomeStack[..., 0])
@@ -860,7 +883,7 @@ def Main():
         status = saveOutput(pathToTrainOutputFile, trainDict)
         print(status)
 
-    elif takeFeat == 'conn':
+    elif which == 'network':
 
         status = saveOutput(pathToPredictionOutputFile, networkResults)
         status = saveOutput(pathToTrainOutputFile, networkTrainResults)

@@ -314,34 +314,50 @@ def saveOutput(outputFilePath, outputMatrix):
 
 def Main():
     # Define the inputs
-    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
-    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
-    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
+    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/wave/dos160'
+    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/wave/wave_pheno81_uniform.csv'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/wave/wave_subjectList.csv'
 
     connectomeSuffix = '_connectome_glob.txt'
 
-    runwhat = 'corr'
+    runwhat = 'glm'
     doPlot = False
 
     # Define parameters
     alpha = 0.05
     childmax = 12.0
     adolescentmax = 18.0
-    doClasses = True
+    doClasses = False
+    doFDR = True
+    which = 'wave'
+
+    stratStr = (str(runwhat) + '_' + str(doFDR) + '_' + str(alpha))
 
     # Define the outputs
-    outPath = '/home2/surchs/secondLine/correlation/abide/dos160'
-    correlationFileName = (runwhat + '_matrix_glob_a_uncorr.txt')
-    pValueFileName = (runwhat + '_pvalue_matrix_glob_a_uncorr.txt')
-    thresholdFileName = (runwhat + '_thresholded_matrix_glob_a_uncorr.txt')
+    pathToDumpDir = '/home2/surchs/secondLine/GLM/wave/dos160'
+    outPath = os.path.join(pathToDumpDir, stratStr)
+    # Check if it is there
+    if not os.path.isdir(outPath):
+        print('Making ' + outPath + ' now')
+        os.makedirs(outPath)
+
+    suffix = '_matrix_glob_a_uncorr.txt'
+    correlationFileName = (runwhat + suffix)
+    pValueFileName = (runwhat + '_pvalue' + suffix)
+    thresholdFileName = (runwhat + '_thresholded' + suffix)
 
     pathToCorrelationMatrix = os.path.join(outPath, correlationFileName)
     pathToPValueMatrix = os.path.join(outPath, pValueFileName)
     pathToThresholdedMatrix = os.path.join(outPath, thresholdFileName)
-    # This path gets appended by the name of the age group (child, adolescent,
-    # adult)
-    # pathToCorrelationMatrixAges = '/home2/surchs/secondLine/correlation/correlation_matrix_'
-
+    # Check the fucking paths
+    if  (not which in pathToConnectomeDir or
+         not which in  pathToPhenotypicFile or
+         not which in pathToSubjectList or
+         not which in outPath):
+        message = 'Your paths are bad!'
+        raise Exception(message)
+    else:
+        print('Your paths are ok.')
 
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
@@ -363,7 +379,7 @@ def Main():
         subject = subject.strip()
         phenoSubject = phenoSubjects[i]
         # Workaround for dumb ass pandas
-        phenoSubject = ('00' + str(phenoSubject))
+        # phenoSubject = ('00' + str(phenoSubject))
 
         if not subject == phenoSubject:
             raise Exception('The Phenofile returned a different subject name '
@@ -471,12 +487,10 @@ def Main():
 
     # Make the regressor matrix
     if runwhat == 'glm':
-        '''
         regressorStack = np.concatenate((ageStack[..., None],
                                          ones[..., None]),
                                         axis=1)
-        '''
-        regressorStack = ageStack
+        # regressorStack = ageStack
 
     elif runwhat == 'corr':
         regressorStack = ageStack
@@ -587,8 +601,8 @@ def Main():
     print('Minimal pvalue: ' + str(independentPValues.min()))
 
     # Compute threshold p value with FDR
-    # pThresh = computeFDR(independentPValues, alpha)
-    pThresh = alpha
+    pThresh = computeFDR(independentPValues, alpha)
+    # pThresh = alpha
 
     # Threshold the pValueMatrix with FDR
     thresholdedRegressorMatrix = thresholdRegressorMatrix(regressorMatrix,
