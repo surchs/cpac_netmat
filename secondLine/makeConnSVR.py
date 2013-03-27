@@ -419,7 +419,8 @@ def findFeatures(trainFeature, trainAge, strat, kernel='linear', numFeat=200,
             featIndex = rfecvFeature(trainFeature, trainAge, kernel='linear')
 
     elif str(strat) == 'None':
-        print('Not doing any feature selection')
+        if not doPermute:
+            print('Not doing any feature selection')
         firstIndex = np.ones(numberOfFeatures)
         featIndex = firstIndex == 1
 
@@ -1028,7 +1029,7 @@ def runBrain(connectomeStack, ageStack, crossVal):
         print(status)
         status = saveOutput(pathToTrainOutputFile, trainDict)
         print(status)
-        if kernel == 'linear':
+        if kernel == 'linear' and not doPermute:
             status = saveTextFile(pathToWeightMatrixFile, weightMat)
             print(status)
 
@@ -1309,7 +1310,7 @@ def Main():
     pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
     pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_wave_81_3mm.nii.gz'
 
-    connectomeSuffix = '_connectome_glob.txt'
+    connectomeSuffix = '_connectome_glob_corr.txt'
 
     # Define global variables
     global doCV
@@ -1325,12 +1326,12 @@ def Main():
     global doPermute
     doCV = 'kfold'
     kfold = 10
-    nCors = 5
+    nCors = 20
     kernel = 'linear'
     runParamEst = True
     doPlot = False
     doSave = False
-    featureSelection = 'glm'
+    featureSelection = None
     alpha = 0.05
     desFeat = 200
     doPermute = True
@@ -1342,7 +1343,7 @@ def Main():
     global stratStr
 
     # Define local variables
-    runwhat = 'network'
+    runwhat = 'brain'
     numPermute = 100
     which = 'wave'
 
@@ -1382,6 +1383,18 @@ def Main():
         raise Exception(message)
     else:
         print('Your paths are ok.')
+
+
+    if not doSave:
+        # Check if I really don't want to save
+        userIn = raw_input('You have set saving to False. Do you really not want to'
+                  + ' save (y/n):\n')
+        if userIn == 'n':
+            doSave = True
+            print('Setting save to ' + str(doSave))
+        else:
+            print('Save stays at ' + str(doSave))
+
 
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
@@ -1444,10 +1457,12 @@ def Main():
         connectome = loadConnectome(pathToConnectomeFile)
         # Check if nan in there
         if np.isnan(connectome).any():
-            print(subject + ' has nan in the connectome!')
+            print(subject + ' has nan in the connectome prior norm!')
 
-        normalizedConnectome = fisherZ(connectome)
-        # normalizedConnectome = connectome
+        # normalizedConnectome = fisherZ(connectome)
+        normalizedConnectome = connectome
+        if np.isnan(normalizedConnectome).any():
+            print(subject + ' has nan in the connectome post norm!')
         # Get the mean connectivity
         uniqueConnections = getUniqueMatrixElements(normalizedConnectome)
         meanConn = np.mean(uniqueConnections)

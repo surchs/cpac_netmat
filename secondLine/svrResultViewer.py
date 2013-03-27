@@ -283,9 +283,19 @@ def dualPlot(resultWithin, resultBetween, title, outDir, trainPlot=False,
 
     if doPermut:
         # unpack these aswell
-        (withinPerm, betweenPerm) = perm
-        (wEmpMSE, wPerMSE, wPValue) = withinPerm
-        (bEmpMSE, bPerMSE, bPValue) = betweenPerm
+        withinPermut = perm[:, :2, :]
+        betweenPermut = perm[:, 2:4, :]
+        wEmpMSE, wDistMSE, wPValue = testPermutation(resultWithin,
+                                                    withinPermut)
+        bEmpMSE, bDistMSE, bPValue = testPermutation(resultBetween,
+                                                    betweenPermut)
+        wPerMSE = np.mean(wDistMSE)
+        bPerMSE = np.mean(bDistMSE)
+    else:
+        wEmpMSE = getMSE(resultWithin)
+        wEmpMAE = getMAE(resultWithin)
+        bEmpMSE = getMSE(resultBetween)
+        bEmpMAE = getMAE(resultBetween)
 
     # Sanity check
     wSorted = np.sort(wTrue)
@@ -354,23 +364,68 @@ def dualPlot(resultWithin, resultBetween, title, outDir, trainPlot=False,
     wCorr, wCorrP = st.pearsonr(wTrue, wPred)
     bCorr, bCorrP = st.pearsonr(bTrue, bPred)
 
-    wTitle = ('w ('
-              + str(np.round(wCorr, 2)) + ', '
+    wTitle = ('w corr: '
+              + str(np.round(wCorr, 2)) + ' ('
               + str(np.round(wCorrP, 3)) + ')')
-    bTitle = ('b (' + str(np.round(bCorr, 2)) + ', '
+    bTitle = ('b corr: ' + str(np.round(bCorr, 2)) + ' ('
               + str(np.round(bCorrP, 4)) + ')')
 
     if doPermut:
         wTitle = (wTitle
-                  + ' - ' + str(np.round(wEmpMSE, 2))
-                  + ', ', str(np.round(wPerMSE, 2))
+                  + ' MSE: ' + str(np.round(wEmpMSE, 2))
+                  + '/' + str(np.round(wPerMSE, 2))
                   + ' (' + str(np.round(wPValue, 3)) + ')')
         bTitle = (bTitle
-                  + ' - ' + str(np.round(bEmpMSE, 2))
-                  + ', ', str(np.round(bPerMSE, 2))
+                  + ' MSE: ' + str(np.round(bEmpMSE, 2))
+                  + '/' + str(np.round(bPerMSE, 2))
                   + ' (' + str(np.round(bPValue, 3)) + ')')
+    else:
+        wTitle = (wTitle
+                 + ' MSE ' + str(np.round(wEmpMSE, 2))
+                 + ' MAE ' + str(np.round(wEmpMAE, 2)))
+        bTitle = (bTitle
+                  + ' MSE ' + str(np.round(bEmpMSE, 2))
+                  + ' MAE ' + str(np.round(bEmpMAE, 2)))
+
     within.set_title(wTitle)
     between.set_title(bTitle)
+
+    # First plot permutations, if any!
+    if doPermut:
+
+        numPerm = withinPermut.shape[2]
+        for i in np.arange(numPerm):
+            # Get the random result within
+            print('Plotting ' + str(i) + '/' + str(numPerm))
+            wTruePermut = withinPermut[:, 0, i]
+            wPredPermut = withinPermut[:, 1, i]
+            wPermPredMat = np.concatenate((wTruePermut[..., None],
+                                          np.ones_like(wTruePermut)[..., None]),
+                                     axis=1)
+            wPermResult = fitRobust(wPredPermut, wPermPredMat)
+            wPermSlope = wPermResult.params[0]
+            wPermIntercept = wPermResult.params[1]
+            wPermFit = wPermSlope * xnew + wPermIntercept
+            # Plot it
+            within.plot(xnew, wPermFit, c='#c8c1ac', linewidth=0.1)
+
+            # Get the random result between
+            bTruePermut = betweenPermut[:, 0, i]
+            bPredPermut = betweenPermut[:, 1, i]
+            bPermPredMat = np.concatenate((bTruePermut[..., None],
+                                          np.ones_like(bTruePermut)[..., None]),
+                                     axis=1)
+            bPermResult = fitRobust(bPredPermut, bPermPredMat)
+            bPermSlope = bPermResult.params[0]
+            bPermIntercept = bPermResult.params[1]
+            bPermFit = bPermSlope * xnew + bPermIntercept
+            # Plot it
+            between.plot(xnew, bPermFit, c='#c8c1ac', linewidth=0.1)
+        # Done looping through, now add one more empty line for the labels
+        xEmpty = np.array([])
+        yEmpty = np.array([])
+        within.plot(xEmpty, yEmpty, c='#c8c1ac', linewidth=1, label='permutation')
+        between.plot(xEmpty, yEmpty, c='#c8c1ac', linewidth=1, label='permutation')
 
     # withinCorr, withinP = st.pearsonr(wTrue, wPred)
     within.plot(wTrue, wPred, 'k.')
@@ -435,9 +490,22 @@ def fitGLM(dataVector, predMat):
     return results
 
 
-def singlePlot(result, title, outDir, doPlot=False, doSave=False):
+def singlePlot(result, title, outDir, doPlot=False, doSave=False,
+               permutDict=None):
     true = result[:, 0]
     pred = result[:, 1]
+
+    if doPermut:
+        permutResult = permutDict['brain']
+        # Check the permutation result
+        empMSE, distMSE, pValue = testPermutation(result,
+                                                  permutResult)
+        mseStr = ('MSE: ' + str(np.round(empMSE, 2)) + ' / '
+                  + str(np.round(np.mean(distMSE), 2))
+                  + ' (' + str(np.round(pValue, 4)) + ')')
+    else:
+        empMSE = getMSE(result)
+        empMAE = getMAE(result)
 
     # fit ages
     predMat = np.concatenate((true[..., None], np.ones_like(true)[..., None]),
@@ -463,11 +531,37 @@ def singlePlot(result, title, outDir, doPlot=False, doSave=False):
     glmFit = glmSlope * xnew + glmIntercept
 
     # Plot shit
-    fileName = (title + '.png')
-    filePath = os.path.join(outDir, fileName)
+    regFileName = (title + '_regression.png')
+    permFileName = (title + '_permutation.png')
+    regFilePath = os.path.join(outDir, regFileName)
+    permFilePath = os.path.join(outDir, permFileName)
 
     fig = plt.figure(1, figsize=(8, 8), dpi=150)
     subPlot = fig.add_subplot(111)
+
+    # First plot the permutation curves, if any... otherwise, overlay
+    if doPermut:
+        # Now for the permutations...
+        numPerm = permutResult.shape[2]
+        for i in np.arange(numPerm):
+            # Get the random result
+            print('Plotting ' + str(i) + '/' + str(numPerm))
+            truePermut = permutResult[:, 0, i]
+            predPermut = permutResult[:, 1, i]
+            permPredMat = np.concatenate((truePermut[..., None],
+                                          np.ones_like(truePermut)[..., None]),
+                                     axis=1)
+            permResult = fitRobust(predPermut, permPredMat)
+            permSlope = permResult.params[0]
+            permIntercept = permResult.params[1]
+            permFit = permSlope * xnew + permIntercept
+            # Plot it
+            subPlot.plot(xnew, permFit, c='#c8c1ac', linewidth=0.1)
+        # Make an empty plot to add the label
+        xEmpty = np.array([])
+        yEmpty = np.array([])
+        subPlot.plot(xEmpty, yEmpty, c='#c8c1ac', linewidth=1, label='permutation')
+
     subPlot.plot(true, pred, 'k.')
     subPlot.plot(true, true, 'g', label='perfect')
     subPlot.plot(xnew, robustFit, 'r', label=('robust '
@@ -476,19 +570,49 @@ def singlePlot(result, title, outDir, doPlot=False, doSave=False):
     subPlot.plot(xnew, glmFit, 'b', label=('glm '
                                            + str(np.round(glmSlope, 2))
                                            + ' ' + str(np.round(glmP, 3))))
+
     subPlot.legend()
-    fig.suptitle(title + ' ('
+    titleStr = (title + ' ('
                  + str(np.round(corr, 2)) + ', '
                  + str(np.round(p, 3)) + ')')
+    if doPermut:
+        titleStr = (titleStr + ' ' + mseStr)
+    else:
+        titleStr = (titleStr
+                    + ' ' + str(np.round(empMSE, 2))
+                    + ' ' + str(np.round(empMAE, 2)))
+    fig.suptitle(titleStr)
     if doSave:
-        print('Saving to ' + filePath)
-        fig.savefig(filePath)
+        print('Saving to ' + regFilePath)
+        fig.savefig(regFilePath)
     if doPlot:
         plt.show()
         raw_input("Enter\n")
 
         plt.close()
 
+    if doPermut:
+        plt.close()
+        # Make a plot of the permutation MSE distribution and the one we got
+        fig2, (box, histo) = plt.subplots(1, 2, sharex=False, sharey=False)
+        box.boxplot(distMSE, 1)
+        box.axhline(empMSE, c='r', label=('emp MSE ('
+                                          + str(np.round(empMSE, 2))
+                                          + ')'))
+        box.legend()
+        box.set_title('boxplot')
+
+        histo.hist(distMSE)
+        histo.axvline(empMSE, c='r', label=('emp MSE ('
+                                            + str(np.round(empMSE, 2))
+                                            + ')'))
+        histo.legend()
+        histo.set_title('histogram')
+
+        fig2.suptitle('distribution of permutation')
+        if doSave:
+            print('Saving to ' + permFilePath)
+            fig2.savefig(permFilePath)
 
 def networkPlot(networkResults, imageDir, netPerm=None):
     '''
@@ -504,10 +628,10 @@ def networkPlot(networkResults, imageDir, netPerm=None):
             # Split them up into within and between
             withinPermut = permutResults[:, :2, :]
             betweenPermut = permutResults[:, 2:4, :]
-            wEmpMSE, wDistMSE, wTValue, wPValue = testPermutation(withinResult,
-                                                                  withinPermut)
-            bEmpMSE, bDistMSE, bTValue, bPValue = testPermutation(betweenResult,
-                                                                  betweenPermut)
+            wEmpMSE, wDistMSE, wPValue = testPermutation(withinResult,
+                                                         withinPermut)
+            bEmpMSE, bDistMSE, bPValue = testPermutation(betweenResult,
+                                                         betweenPermut)
             # Get the mean of the permutation MSE
             wPerMSE = np.mean(wDistMSE)
             bPerMSE = np.mean(bDistMSE)
@@ -517,7 +641,7 @@ def networkPlot(networkResults, imageDir, netPerm=None):
             permTuple = (withinPerm, betweenPerm)
 
             dualPlot(withinResult, betweenResult, network, imageDir,
-                     perm=permTuple)
+                     perm=permutResults)
         else:
             dualPlot(withinResult, betweenResult, network, imageDir)
 
@@ -661,6 +785,33 @@ def trainPlot(withinDict, betweenDict=None, netName='', outDir='./'):
             break
 
 
+def getMAE(result):
+    '''
+    return the mse for one result
+    '''
+    # test data
+    trueTest = result[:, 0]
+    predTest = result[:, 1]
+
+    # Get the MSE for the empirical values
+    empMAE = np.mean(np.abs(trueTest - predTest))
+
+    return empMAE
+
+def getMSE(result):
+    '''
+    return the mse for one result
+    '''
+    # test data
+    trueTest = result[:, 0]
+    predTest = result[:, 1]
+
+    # Get the MSE for the empirical values
+    empMSE = np.mean(np.square(trueTest - predTest))
+
+    return empMSE
+
+
 def testPermutation(testResult, permutationResult):
     '''
     Method that essentially runs a t-test to determine if the test result
@@ -680,8 +831,13 @@ def testPermutation(testResult, permutationResult):
     # Run a one sample t-test on this thing - if significant, then our
     # empirical MSE is significantly different from the permuted one
     tValue, pValue = st.ttest_1samp(distMSE, empMSE)
+    # Do zarrars p value
+    smallerEmp = distMSE < empMSE
+    nSmaller = np.sum(smallerEmp)
+    pZarrar = float(nSmaller) / len(distMSE)
 
-    return empMSE, distMSE, tValue, pValue
+    # return empMSE, distMSE, tValue, pValue
+    return empMSE, distMSE, pZarrar
 
 
 def saveOutput(outputFilePath, output):
@@ -695,8 +851,9 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
-    pathToFiles = ''
+    pathToFiles = '/home2/surchs/secondLine/SVM/wave/dos160/kfold_10_linear_True_rfe_network__connectome_glob_corr'
 
+    print('\nLooking for files')
     pred = glob.glob(pathToFiles + '/*.pred')
     if pred:
         if len(pred) > 1:
@@ -723,6 +880,7 @@ def Main():
         pathToPermutationResults = perm[0]
     else:
         print('No permutation file at ' + str(pathToFiles))
+    print('\n\n')
 
 
     '''
@@ -748,9 +906,8 @@ def Main():
     doPlot = False
     doSave = True
 
-    doConn = False
-    doBrain = True
-    doMean = False
+    which = 'network'
+
 
     # Read input files
     netDict = loadArchive(pathToNetworkResults)
@@ -760,7 +917,7 @@ def Main():
         permutDict = loadArchive(pathToPermutationResults)
 
     # Plot the mean connectivity
-    if doMean:
+    if which == 'mean':
         print('Plotting what we actually wanted...\n')
         (withinResult, betweenResult) = netDict
         # (withinTrainDict, betweenTrainDict) = trainDict
@@ -785,21 +942,16 @@ def Main():
         '''
 
     # Plot whole brain connectivity results
-    if doBrain:
+    if which == 'brain':
         result = netDict
 
-        title = 'whole brain SVR'
+        title = 'brainSVR'
         if doPermut:
-            permutResult = permutDict['brain']
-            # Check the permutation result
-            empMSE, distMSE, tValue, pValue = testPermutation(result,
-                                                              permutResult)
-            mseStr = ('MSE: ' + str(empMSE) + ' / ' + str(np.mean(distMSE))
-                      + ' (' + str(np.round(pValue, 4)) + ')')
-            title = (title + ' ' + mseStr)
-
-        singlePlot(result, title, imageDir,
-                   doPlot=doPlot, doSave=doSave)
+            singlePlot(result, title, imageDir,
+                       doPlot=doPlot, doSave=doSave, permutDict=permutDict)
+        else:
+            singlePlot(result, title, imageDir,
+                       doPlot=doPlot, doSave=doSave)
 
         '''
         No longer interested in this
@@ -815,7 +967,7 @@ def Main():
         '''
 
     # Plot network connectivity results
-    if doConn:
+    if which == 'network':
         # Done with running analysis. Plotting by network now
         networkResults = netDict
         # networkTrainResults = trainDict

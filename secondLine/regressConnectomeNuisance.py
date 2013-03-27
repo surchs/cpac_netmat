@@ -104,6 +104,10 @@ def runGLM(dataVector, predMat):
     model = sm.OLS(dataVector, predMat)
     results = model.fit()
     residuals = results.resid
+    # get the mean
+    mean = results.params[1]
+    # Add the mean back on to the residuals
+    residuals += mean
 
     return residuals
 
@@ -115,7 +119,10 @@ def alternativeGLM(dataVector, predMat):
     results = model.fit(predMat, dataVector, n_jobs=1)
     # Get the residuals
     residuals = dataVector - model.predict(predMat)
-
+    # get the mean
+    mean = results.params[1]
+    # Add the mean back on to the residuals
+    residuals += mean
 
     return residuals
 
@@ -165,7 +172,7 @@ def runConnections(connectomeStack, regressorMatrix):
 
             # Run the alternative to cut computing bloat
             # newConnVec = runGLM(connVec, regressorMatrix)
-            newConnVec = alternativeGLM(connVec, regressorMatrix)
+            newConnVec = runGLM(connVec, regressorMatrix)
 
             # Now get the result into the output matrix
             flatOutConnectome[i, :] = newConnVec
@@ -218,9 +225,9 @@ def saveConnectome(connectome, outputFilePath):
 
 def Main():
     # Define inputs
-    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
-    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/abide/abide_across_236_combined_pheno.csv'
-    pathToSubjectList = '/home2/surchs/secondLine/configs/abide/abide_across_236_subjects.csv'
+    pathToConnectomeDir = '/home2/surchs/secondLine/connectomes/wave/dos160'
+    pathToPhenotypicFile = '/home2/surchs/secondLine/configs/wave/wave_pheno81_uniform_combined.csv'
+    pathToSubjectList = '/home2/surchs/secondLine/configs/wave/wave_subjectList.csv'
 
     connectomeSuffix = '_connectome_glob.txt'
 
@@ -228,7 +235,7 @@ def Main():
     doDebug = False
 
     # Define outputs
-    pathToConnectomeOutDir = '/home2/surchs/secondLine/connectomes/abide/dos160'
+    pathToConnectomeOutDir = '/home2/surchs/secondLine/connectomes/wave/dos160'
     outFileSuffix = '_connectome_glob_corr.txt'
 
     # Read subject list
@@ -237,10 +244,10 @@ def Main():
 
     # Read the phenotypic file
     pheno = loadPhenotypicFile(pathToPhenotypicFile)
-    phenoSubjects = pheno['SubID'].tolist()
+    phenoSubjects = pheno['subject'].tolist()
     phenoAges = pheno['age'].tolist()
     meanFD = pheno['MeanFD'].tolist()
-    site = pheno['Site']
+    # site = pheno['Site']
 
     # Prepare container variables
     connectomeStack = np.array([])
@@ -253,7 +260,7 @@ def Main():
         subject = subject.strip()
         phenoSubject = phenoSubjects[i]
         # Workaround for dumb ass pandas
-        phenoSubject = ('00' + str(phenoSubject))
+        # phenoSubject = ('00' + str(phenoSubject))
 
         if not subject == phenoSubject:
             raise Exception('The Phenofile returned a different subject name '
@@ -263,11 +270,11 @@ def Main():
         # Get covariates
         phenoAge = phenoAges[i]
         phenoMeanFd = meanFD[i]
-        phenoSite = site[i]
+        # phenoSite = site[i]
 
         # Stack the covariates
         ageStack = stackCov(ageStack, phenoAge)
-        siteStack = stackCov(siteStack, phenoSite)
+        # siteStack = stackCov(siteStack, phenoSite)
         meanFdStack = stackCov(meanFdStack, phenoMeanFd)
 
         # Construct the path to the connectome file of the subject
@@ -287,10 +294,10 @@ def Main():
     # Done stacking this stuff up
     # Create the Site regressors
     # First, find the number of different sites
-    siteRegressorMatrix = makeSiteRegressors(siteStack)
-    # Create the regressor matrix
+    # siteRegressorMatrix = makeSiteRegressors(siteStack)
+    # Create the regressor matrix, with mean and add the mean later
     regressorMatrix = np.concatenate((meanFdStack[..., None],
-                                      siteRegressorMatrix),
+                                      np.ones_like(meanFdStack[..., None])),
                                      axis=1)
     print('All regressors in. This is their shape: '
           + str(regressorMatrix.shape))
@@ -298,6 +305,7 @@ def Main():
     ### DEBUG ###
     #           #
     ### DEBUG ###
+    '''
     if doDebug:
         # First regress site from age
         residuals = runGLM(ageStack, siteRegressorMatrix)
@@ -342,7 +350,7 @@ def Main():
         plt.close()
 
 
-
+    '''
     if not doDebug:
         # Everything in place, let's run the regression!
         outConnectome = runConnections(connectomeStack, regressorMatrix)

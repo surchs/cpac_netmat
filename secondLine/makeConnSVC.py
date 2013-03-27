@@ -482,8 +482,11 @@ def trainPlot(withinDict, betweenDict=None):
             fig.suptitle('Run ' + str(run))
         # Plot the shit
         plt.show()
-        raw_input("Press Enter or break...\n")
+        userIn = raw_input("Press Enter or break...\n")
         plt.close()
+        if userIn == 'break':
+            print('breaking')
+            break
 
     # Done iterating
     if betweenDict:
@@ -510,16 +513,16 @@ def Main():
     pathToNetworkNodes = '/home2/surchs/secondLine/configs/networkNodes_dosenbach.dict'
     pathToRoiMask = '/home2/surchs/secondLine/masks/dos160_wave_81_3mm.nii.gz'
 
-    connectomeSuffix = '_connectome_glob.txt'
+    connectomeSuffix = '_connectome_glob_corr.txt'
 
     # Define parameters
-    doCV = 'kfold'
+    doCV = 'loocv'
     kfold = 10
     nCors = 5
-    kernel = 'rbf'
+    kernel = 'linear'
     runParamEst = True
-    which = 'brain'
-    doPlot = False
+    which = 'network'
+    doPlot = True
     what = 'wave'
 
     childmax = 12.0
@@ -607,7 +610,7 @@ def Main():
         connectome = loadConnectome(pathToConnectomeFile)
         # Check if nan in there
         if np.isnan(connectome).any():
-            print(subject + ' has nan in the connectome!')
+            print(subject + ' has nan in the connectome prior norm!')
 
         # Get the class assignment for the subject
         if phenoAge <= childmax:
@@ -630,7 +633,7 @@ def Main():
         normalizedConnectome = connectome
         # Check if nan in there
         if np.isnan(normalizedConnectome).any():
-            message = (subject + ' has nan in the connectome!')
+            message = (subject + ' has nan in the connectome post norm!')
             raise Exception(message)
 
         # Get the mean connectivity
@@ -774,7 +777,7 @@ def Main():
 
         if which == 'network':
             # Run SVR
-            print('\nRunning within ' + network + ' connectivity SVR ('
+            print('\nRunning within ' + network + ' connectivity SVC ('
                   + str(i) + '/' + str(len(networkNodes.keys())) + ')')
             withinResult, withinTrainDict = mainSVC(withinFeature,
                                                     labelStack,
@@ -783,7 +786,7 @@ def Main():
                                                     kernel,
                                                     nCors,
                                                     runParamEst)
-            print('\nRunning between ' + network + ' connectivity SVR ('
+            print('\nRunning between ' + network + ' connectivity SVC ('
                   + str(i) + '/' + str(len(networkNodes.keys())) + ')')
             betweenResult, betweenTrainDict = mainSVC(betweenFeature,
                                                       labelStack,
@@ -834,6 +837,12 @@ def Main():
                                                   kernel,
                                                   nCors,
                                                   runParamEst)
+
+        testSaveTuple = (withinResult, betweenResult)
+        trainSaveTuple = (withinTrainDict, betweenTrainDict)
+        status = saveOutput(pathToPredictionOutputFile, testSaveTuple)
+        status = saveOutput(pathToTrainOutputFile, trainSaveTuple)
+
         if doPlot:
             print('Plotting what we actually wanted...\n'
                   + stratStr)
@@ -854,11 +863,6 @@ def Main():
                      + ' predicting age')
             trainPlot(withinTrainDict, betweenTrainDict)
 
-        testSaveTuple = (withinResult, betweenResult)
-        trainSaveTuple = (withinTrainDict, betweenTrainDict)
-        status = saveOutput(pathToPredictionOutputFile, testSaveTuple)
-        status = saveOutput(pathToTrainOutputFile, trainSaveTuple)
-
     if which == 'brain':
         print('Lets do the brain!\n'
               + stratStr)
@@ -874,18 +878,21 @@ def Main():
                                     nCors,
                                     runParamEst)
 
+        status = saveOutput(pathToPredictionOutputFile, result)
+        print(status)
+        status = saveOutput(pathToTrainOutputFile, trainDict)
+        print(status)
+
         if doPlot:
             singlePlot(result, 'whole brain SVC plot')
             accBrain = trainPlot(trainDict)
             print('Prediction accuracy for the whole brain on training:\n'
                   + '    acc: ' + str(np.average(accBrain)))
-        status = saveOutput(pathToPredictionOutputFile, result)
-        status = saveOutput(pathToTrainOutputFile, trainDict)
-        print(status)
 
     elif which == 'network':
 
         status = saveOutput(pathToPredictionOutputFile, networkResults)
+        print(status)
         status = saveOutput(pathToTrainOutputFile, networkTrainResults)
         print(status)
 

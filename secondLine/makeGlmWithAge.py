@@ -318,9 +318,9 @@ def Main():
     pathToPhenotypicFile = '/home2/surchs/secondLine/configs/wave/wave_pheno81_uniform.csv'
     pathToSubjectList = '/home2/surchs/secondLine/configs/wave/wave_subjectList.csv'
 
-    connectomeSuffix = '_connectome_glob.txt'
+    connectomeSuffix = '_connectome_glob_corr.txt'
 
-    runwhat = 'glm'
+    runwhat = 'corr'
     doPlot = False
 
     # Define parameters
@@ -335,14 +335,14 @@ def Main():
                 + '_' + str(doClasses))
 
     # Define the outputs
-    pathToDumpDir = '/home2/surchs/secondLine/GLM/wave/dos160'
+    pathToDumpDir = '/home2/surchs/secondLine/GLM/wave/dos160/corrected'
     outPath = os.path.join(pathToDumpDir, stratStr)
     # Check if it is there
     if not os.path.isdir(outPath):
         print('Making ' + outPath + ' now')
         os.makedirs(outPath)
 
-    suffix = '_matrix_glob_a_uncorr.txt'
+    suffix = '_matrix_glob_ai_corr.txt'
     correlationFileName = (runwhat + suffix)
     pValueFileName = (runwhat + '_pvalue' + suffix)
     thresholdFileName = (runwhat + '_thresholded' + suffix)
@@ -396,25 +396,29 @@ def Main():
         # Load the connectome for the subject
         connectome = loadConnectome(pathToConnectomeFile)
         # Normalize the connectome
-        normalizedConnectome = fisherZ(connectome)
-        # normalizedConnectome = connectome
+        # normalizedConnectome = fisherZ(connectome)
+        normalizedConnectome = connectome
+        if np.isnan(normalizedConnectome).any():
+            message = (subject + ' has nan in the connectome post norm!')
+            raise Exception(message)
 
-        # Get the class assignment for the subject
-        if phenoAge <= childmax:
-            print(subject + ' --> child (' + str(phenoAge) + ')')
-            label = 0
+        if doClasses:
+            # Get the class assignment for the subject
+            if phenoAge <= childmax:
+                print(subject + ' --> child (' + str(phenoAge) + ')')
+                label = 0
 
-        elif phenoAge > childmax and phenoAge <= adolescentmax:
-            print(subject + ' --> adolescent (' + str(phenoAge) + ')')
-            label = 1
-            # Don't use adolescents
-            continue
+            elif phenoAge > childmax and phenoAge <= adolescentmax:
+                print(subject + ' --> adolescent (' + str(phenoAge) + ')')
+                label = 1
+                # Don't use adolescents
+                continue
 
-        else:
-            print(subject + ' --> adult (' + str(phenoAge) + ')')
-            label = 2
+            else:
+                print(subject + ' --> adult (' + str(phenoAge) + ')')
+                label = 2
 
-        labelStack = np.append(labelStack, label)
+            labelStack = np.append(labelStack, label)
 
         # Get the mean connectivity
         uniqueConnections = getUniqueMatrixElements(normalizedConnectome)
@@ -602,8 +606,11 @@ def Main():
     thresholdedRegressorMatrix = thresholdRegressorMatrix(regressorMatrix,
                                                           pValueMatrix,
                                                           pThresh)
+
+    survivorCount = np.sum(getUniqueMatrixElements(thresholdedRegressorMatrix != 0))
+    numFeatures = len(getUniqueMatrixElements(thresholdedRegressorMatrix != 0))
     # Show how many survived
-    print('survivors: ' + str(np.sum(thresholdedRegressorMatrix != 0)))
+    print('survivors: ' + str(survivorCount) + ' / ' + str(numFeatures))
 
     status = saveOutput(pathToCorrelationMatrix, regressorMatrix)
     print('correlation matrix ' + status)

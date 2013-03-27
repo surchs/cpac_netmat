@@ -38,18 +38,18 @@ def writePheno(pathToOutput, listOfStrings):
 
 def Main():
     # Define inputs
-    pathToOriginalPheno = '/home2/surchs/secondLine/configs/abide/abide_across_236_pheno.csv'
-    pathToAddPheno = '/home2/surchs/secondLine/configs/abide/abide_nuisance_scan_rest_1_rest_threshold_0.2_all_params.csv'
+    pathToOriginalPheno = '/home2/surchs/secondLine/configs/wave/wave_pheno81_uniform.csv'
+    pathToAddPheno = '/home2/data/Projects/wave_uniform/output_dir/pipeline_HackettCity/scan_func_rest_threshold_0.2_all_params.csv'
 
     # Define parameters
-    origSub = 'SubID'
+    origSub = 'subject'
     addSub = 'Subject'
     listOfAddedCov = ['MeanFD',
                         'NumFD_greater_than_0.20']
 
     # Define outputs
     combinedPheno = []
-    pathToCombinedPheno = '/home2/surchs/secondLine/configs/abide/abide_across_236_combined_pheno.csv'
+    pathToCombinedPheno = '/home2/surchs/secondLine/configs/wave/wave_pheno81_uniform_combined.csv'
 
     # Read the inputs
     origIndex, origPheno, origHeader = readPheno(pathToOriginalPheno)
