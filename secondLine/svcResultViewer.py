@@ -358,6 +358,22 @@ def networkPlot(networkResults):
     withinStack = np.array([])
     betweenStack = np.array([])
     netNames = []
+    # Prepare ROC figure
+    fig2, (within2, between2) = plt.subplots(1, 2, sharex=False, sharey=False)
+    within2.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
+                 label='Random classifier')
+    within2.set_xlabel('False Positive Rate')
+    within2.set_ylabel('True Positive Rate')
+    within2.set_title('ROCs for within network connections')
+    within2.legend(loc='lower right')
+    between2.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
+                 label='Random classifier')
+    between2.set_xlabel('False Positive Rate')
+    between2.set_ylabel('True Positive Rate')
+    between2.set_title('ROCs for between network connections')
+    between2.legend(loc='lower right')
+    fig2.suptitle('ROC plots')
+
     for network in networkResults.keys():
         print('Plotting network ' + network + ' now.')
         (withinResult, betweenResult) = networkResults[network]
@@ -373,8 +389,28 @@ def networkPlot(networkResults):
         '''
         wTrue = withinResult[:, 0]
         wPred = withinResult[:, 1]
+        wProb = withinResult[:, 3]
+        wMeanFPR = withinResult[:, 4]
+        wMeanTPR = withinResult[:, 5]
         bTrue = betweenResult[:, 0]
         bPred = betweenResult[:, 1]
+        wProb = betweenResult[:, 3]
+        wMeanFPR = betweenResult[:, 4]
+        wMeanTPR = betweenResult[:, 5]
+
+        # Prepare ROC
+        wFpr, wTpr, Whresh = roc_curve(wTrue, wProb)
+        wRocAuc = auc(wFpr, wTpr)
+
+        within2.plot(wFpr, wTpr, lw=1,
+                     label=('ROC for network %s (area = %0.2f)' % (network,
+                                                                   wRocAuc)))
+
+        bFpr, bTpr, bThresh = roc_curve(bTrue, wProb)
+        bRocAuc = auc(bFpr, bTpr)
+        between2.plot(bFpr, bTpr, lw=1,
+                      label=('ROC for network %s (area = %0.2f)' % (network,
+                                                                    bRocAuc)))
 
         withinRatio = calcPredAcc(wTrue, wPred)
         betweenRatio = calcPredAcc(bTrue, bPred)
@@ -383,6 +419,11 @@ def networkPlot(networkResults):
         netNames.append(network)
         print('    within: ' + str(withinRatio) + '\n'
               '    between: ' + str(betweenRatio))
+
+    # Done with ROC, plot
+    plt.show()
+    raw_input("Press Enter...\n")
+    plt.close()
 
     # Done, plot
     index = np.arange(len(withinStack)) + 1
