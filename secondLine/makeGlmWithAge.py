@@ -6,6 +6,7 @@ Created on Feb 22, 2013
 import os
 import sys
 import time
+import copy
 import numpy as np
 import pandas as pa
 import statsmodels.api as sm
@@ -64,6 +65,22 @@ def fisherZ(connectome):
     normalizedConnectome = np.arctanh(connectome)
 
     return normalizedConnectome
+
+
+def normalize(connectome):
+    '''
+    Method that normalizes the connectome
+    Should be run after fisher-r transform
+    '''
+    mean = np.mean(connectome, axis=2)
+    sd = np.std(connectome, axis=2)
+    numSubs = connectome.shape[2]
+    normConnectome = copy.deepcopy(connectome)
+    # Now loop through and do this for every subject
+    for i in np.arange(numSubs):
+        normConnectome[..., i] = (normConnectome[..., i] - mean) / sd
+
+    return normConnectome
 
 
 def runConnections(connectomeStack, regressorStack, runwhat):
@@ -487,6 +504,9 @@ def Main():
                   + 'age: ' + str(ageStack.shape) + '\n'
                   + 'connectome: ' + str(connectomeStack.shape))
 
+    # Now we have the connectome stack
+    # Normalize is (z-transform)
+    connectomeStack = normalize(connectomeStack)
     # Prepare vector of ones for intercept
     ones = np.ones_like(ageStack)
 

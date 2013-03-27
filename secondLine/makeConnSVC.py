@@ -8,6 +8,7 @@ Classify
 import os
 import gzip
 import time
+import copy
 import cPickle
 import numpy as np
 import pandas as pa
@@ -88,6 +89,22 @@ def fisherZ(connectome):
     normalizedConnectome = np.arctanh(connectome)
 
     return normalizedConnectome
+
+
+def normalize(connectome):
+    '''
+    Method that normalizes the connectome
+    Should be run after fisher-r transform
+    '''
+    mean = np.mean(connectome, axis=2)
+    sd = np.std(connectome, axis=2)
+    numSubs = connectome.shape[2]
+    normConnectome = copy.deepcopy(connectome)
+    # Now loop through and do this for every subject
+    for i in np.arange(numSubs):
+        normConnectome[..., i] = (normConnectome[..., i] - mean) / sd
+
+    return normConnectome
 
 
 def makeFolds(feature, label, age, crossVal):
@@ -788,6 +805,8 @@ def Main():
                   + 'with ' + str(len(phenoSubjects)) + ' subjects\n')
 
     # Now we have the connectome stack
+    # Normalize is (z-transform)
+    connectomeStack = normalize(connectomeStack)
     # Let's loop through the networks again
     for i, network in enumerate(networkNodes.keys()):
         if which == 'brain':

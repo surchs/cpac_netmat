@@ -89,6 +89,22 @@ def fisherZ(connectome):
     return normalizedConnectome
 
 
+def normalize(connectome):
+    '''
+    Method that normalizes the connectome
+    Should be run after fisher-r transform
+    '''
+    mean = np.mean(connectome, axis=2)
+    sd = np.std(connectome, axis=2)
+    numSubs = connectome.shape[2]
+    normConnectome = copy.deepcopy(connectome)
+    # Now loop through and do this for every subject
+    for i in np.arange(numSubs):
+        normConnectome[..., i] = (normConnectome[..., i] - mean) / sd
+
+    return normConnectome
+
+
 def runGLM(dataVector, predMat):
     # run a glm with only one factor
     model = sm.OLS(dataVector, predMat)
@@ -1384,7 +1400,6 @@ def Main():
     else:
         print('Your paths are ok.')
 
-
     if not doSave:
         # Check if I really don't want to save
         userIn = raw_input('You have set saving to False. Do you really not want to'
@@ -1394,7 +1409,6 @@ def Main():
             print('Setting save to ' + str(doSave))
         else:
             print('Save stays at ' + str(doSave))
-
 
     # Read subject list
     subjectListFile = open(pathToSubjectList, 'rb')
@@ -1473,6 +1487,10 @@ def Main():
         print('connectomeStack: ' + str(connectomeStack.shape))
         # Stack ages
         ageStack = stackAges(ageStack, phenoAge)
+
+    # Now we have the connectome stack
+    # Normalize is (z-transform)
+    connectomeStack = normalize(connectomeStack)
 
     # Done preparing, now run whatever we want
     # First check if we are permuting
