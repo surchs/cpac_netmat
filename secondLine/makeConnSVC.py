@@ -317,6 +317,13 @@ def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
         5) meanFPR
         6) meanTPR
     '''
+    print('testLabelVec: ' + str(testLabelVec.shape))
+    print('predLabelVec: ' + str(predLabelVec.shape))
+    print('testAgeVec: ' + str(testAgeVec.shape))
+    print('probVec: ' + str(probVec.shape))
+    print('meanFpr: ' + str(meanFpr.shape))
+    print('meanTpr: ' + str(meanTpr.shape))
+
     outputMatrix = np.concatenate((testLabelVec[..., None],
                                    predLabelVec[..., None],
                                    testAgeVec[..., None],
