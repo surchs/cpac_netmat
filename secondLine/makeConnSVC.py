@@ -268,8 +268,9 @@ def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
         # Store predicted and true label in the output directory
         testLabelVec = np.append(testLabelVec, testLabel)
         predLabelVec = np.append(predLabelVec, predictedLabel)
-        # Also store the probability
-        probVec = np.append(probVec, probas)
+        # Also store the probability, take care with the ordering.
+        # very important
+        probVec = np.append(probVec, probas[:, 1])
 
         # Take time
         stop = time.time()
