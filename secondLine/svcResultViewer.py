@@ -365,13 +365,11 @@ def networkPlot(networkResults):
     within2.set_xlabel('False Positive Rate')
     within2.set_ylabel('True Positive Rate')
     within2.set_title('ROCs for within network connections')
-    within2.legend(loc='lower right')
     between2.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
                  label='Random classifier')
     between2.set_xlabel('False Positive Rate')
     between2.set_ylabel('True Positive Rate')
     between2.set_title('ROCs for between network connections')
-    between2.legend(loc='lower right')
     fig2.suptitle('ROC plots')
 
     for network in networkResults.keys():
@@ -394,22 +392,22 @@ def networkPlot(networkResults):
         wMeanTPR = withinResult[:, 5]
         bTrue = betweenResult[:, 0]
         bPred = betweenResult[:, 1]
-        wProb = betweenResult[:, 3]
-        wMeanFPR = betweenResult[:, 4]
-        wMeanTPR = betweenResult[:, 5]
+        bProb = betweenResult[:, 3]
+        bMeanFPR = betweenResult[:, 4]
+        bMeanTPR = betweenResult[:, 5]
 
         # Prepare ROC
-        wFpr, wTpr, Whresh = roc_curve(wTrue, wProb)
+        wFpr, wTpr, WThresh = roc_curve(wTrue, wProb)
         wRocAuc = auc(wFpr, wTpr)
 
         within2.plot(wFpr, wTpr, lw=1,
-                     label=('ROC for network %s (area = %0.2f)' % (network,
+                     label=('%s (%0.2f)' % (network,
                                                                    wRocAuc)))
 
-        bFpr, bTpr, bThresh = roc_curve(bTrue, wProb)
+        bFpr, bTpr, bThresh = roc_curve(bTrue, bProb)
         bRocAuc = auc(bFpr, bTpr)
         between2.plot(bFpr, bTpr, lw=1,
-                      label=('ROC for network %s (area = %0.2f)' % (network,
+                      label=('%s (%0.2f)' % (network,
                                                                     bRocAuc)))
 
         withinRatio = calcPredAcc(wTrue, wPred)
@@ -421,6 +419,8 @@ def networkPlot(networkResults):
               '    between: ' + str(betweenRatio))
 
     # Done with ROC, plot
+    within2.legend(loc='lower right')
+    between2.legend(loc='lower right')
     plt.show()
     raw_input("Press Enter...\n")
     plt.close()
