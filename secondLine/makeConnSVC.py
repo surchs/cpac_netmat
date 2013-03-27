@@ -580,12 +580,12 @@ def Main():
     connectomeSuffix = '_connectome_glob_corr.txt'
 
     # Define parameters
-    doCV = 'loocv'
+    doCV = 'kfold'
     kfold = 10
     nCors = 5
     kernel = 'linear'
     runParamEst = True
-    which = 'network'
+    which = 'brain'
     doPlot = True
     what = 'wave'
 
