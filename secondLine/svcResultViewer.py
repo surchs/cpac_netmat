@@ -282,6 +282,7 @@ def singlePlot(predAcc, title):
         5) meanFPR
         6) meanTPR
     '''
+    print('PredAcc: ' + str(predAcc.shape))
     true = predAcc[:, 0]
     pred = predAcc[:, 1]
     age = predAcc[:, 2]
@@ -619,7 +620,7 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
-    pathToFiles = '/home2/surchs/secondLine/SVC/wave/dos160/kfold_10_linear_True_network__connectome_glob'
+    pathToFiles = '/home2/surchs/secondLine/SVC/wave/dos160/kfold_10_linear_True_brain__connectome_glob_corr'
 
     print('\nLooking for files')
     pred = glob.glob(pathToFiles + '/*.pred')
@@ -674,7 +675,7 @@ def Main():
     doPlot = False
     doSave = True
 
-    which = 'network'
+    which = 'brain'
 
     # Read input files
     netDict = loadArchive(pathToNetworkResults)
