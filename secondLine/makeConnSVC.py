@@ -219,8 +219,8 @@ def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
     trainAgeVec = np.array([])
     # Container for the ROC
     probVec = np.array([])
-    fprStack = np.array([])
-    tprStack = np.array([])
+    rocDict = {}
+    keyList = []
 
     for i, run in enumerate(crossValDict.keys()):
         start = time.time()
@@ -250,14 +250,10 @@ def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
         # Get the probability for the ROC
         probas, fpr, tpr = getProbability(model, testFeature, testLabel)
         # Stack fpr and tpr for later use
-        if fprStack.size == 0:
-            fprStack = fpr[..., None]
-        else:
-            fprStack = np.concatenate((fprStack, fpr[..., None]), axis=1)
-        if tprStack.size == 0:
-            tprStack = tpr[..., None]
-        else:
-            tprStack = np.concatenate((tprStack, tpr[..., None]), axis=1)
+        rocTuple = (fpr, tpr)
+        rocDict[str(run)] = rocTuple
+        keyList.append(str(run))
+
         # Test model on test data
         predictedLabel = testModel(model, testFeature)
         # Test model on train data - for sanity check
@@ -301,10 +297,10 @@ def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
     desLength = len(testLabelVec)
     meanFpr = np.linspace(0, 1, desLength)
     meanTpr = 0.0
-    numCV = fprStack.shape[1]
-    for i in np.arange(numCV):
-        fpr = fprStack[:, i]
-        tpr = tprStack[:, i]
+    numCV = len(keyList)
+
+    for key in keyList:
+        (fpr, tpr) = rocDict[key]
         meanTpr += interp(meanFpr, fpr, tpr)
         meanTpr[0] = 0.0
 
