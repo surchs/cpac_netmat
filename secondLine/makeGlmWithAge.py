@@ -346,6 +346,7 @@ def Main():
     adolescentmax = 18.0
     doClasses = False
     doFDR = False
+    doNorm = True
     which = 'wave'
 
     stratStr = (str(runwhat) + '_' + str(doFDR) + '_' + str(alpha)
@@ -506,7 +507,8 @@ def Main():
 
     # Now we have the connectome stack
     # Normalize is (z-transform)
-    connectomeStack = normalize(connectomeStack)
+    if doNorm:
+        connectomeStack = normalize(connectomeStack)
     # Prepare vector of ones for intercept
     ones = np.ones_like(ageStack)
 

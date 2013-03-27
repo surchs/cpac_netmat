@@ -1359,6 +1359,7 @@ def Main():
     global stratStr
 
     # Define local variables
+    doNorm = True
     runwhat = 'brain'
     numPermute = 100
     which = 'wave'
@@ -1490,7 +1491,8 @@ def Main():
 
     # Now we have the connectome stack
     # Normalize is (z-transform)
-    connectomeStack = normalize(connectomeStack)
+    if doNorm:
+        connectomeStack = normalize(connectomeStack)
 
     # Done preparing, now run whatever we want
     # First check if we are permuting

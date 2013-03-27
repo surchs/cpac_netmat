@@ -608,6 +608,7 @@ def Main():
     runParamEst = True
     which = 'brain'
     doPlot = True
+    doNorm = True
     what = 'wave'
 
     childmax = 12.0
@@ -806,7 +807,8 @@ def Main():
 
     # Now we have the connectome stack
     # Normalize is (z-transform)
-    connectomeStack = normalize(connectomeStack)
+    if doNorm:
+        connectomeStack = normalize(connectomeStack)
     # Let's loop through the networks again
     for i, network in enumerate(networkNodes.keys()):
         if which == 'brain':
