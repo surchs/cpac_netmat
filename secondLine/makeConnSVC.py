@@ -13,11 +13,15 @@ import numpy as np
 import pandas as pa
 import nibabel as nib
 from sklearn import svm
+from scipy import interp
 import statsmodels.api as sm
 from scipy import stats as st
+from sklearn.metrics import auc
 import sklearn.grid_search as gs
 from matplotlib import pyplot as plt
+from sklearn.metrics import roc_curve
 import sklearn.cross_validation as cv
+
 
 def loadPhenotypicFile(pathToPhenotypicFile):
     pheno = pa.read_csv(pathToPhenotypicFile)
@@ -173,7 +177,7 @@ def trainModel(trainFeature, trainLabel, kernel, C):
     '''
     module to train the model on the data
     '''
-    trainModel = svm.SVC(kernel=kernel, C=C)
+    trainModel = svm.SVC(kernel=kernel, C=C, probability=True)
 
     trainModel.fit(trainFeature, trainLabel)
 
@@ -189,6 +193,19 @@ def testModel(model, testFeature):
     return predictedAge
 
 
+def getProbability(model, testFeature, testLabel):
+    '''
+    Method to prepare the ROC
+    '''
+    probas = model.predict_proba(testFeature)
+    # The index for the probability vector corresponds to the larger label
+    # (most likely 1). If 1 is not the largest label, the label has to be
+    # set in the roc function
+    fpr, tpr, thresh = roc_curve(testLabel, probas[:, 1])
+
+    return probas, fpr, tpr
+
+
 def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
     '''
     short method to handle all the steps in the SVC
@@ -200,6 +217,10 @@ def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
     predLabelVec = np.array([])
     testAgeVec = np.array([])
     trainAgeVec = np.array([])
+    # Container for the ROC
+    probVec = np.array([])
+    fprStack = np.array([])
+    tprStack = np.array([])
 
     for i, run in enumerate(crossValDict.keys()):
         start = time.time()
@@ -226,6 +247,17 @@ def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
         # Train model on train data
         print('trainshape: ' + str(trainFeature.shape))
         model = trainModel(trainFeature, trainLabel, kernel, bestC)
+        # Get the probability for the ROC
+        probas, fpr, tpr = getProbability(model, testFeature, testLabel)
+        # Stack fpr and tpr for later use
+        if fprStack.size == 0:
+            fprStack = fpr[..., None]
+        else:
+            fprStack = np.concatenate((fprStack, fpr[..., None]), axis=1)
+        if tprStack.size == 0:
+            tprStack = tpr[..., None]
+        else:
+            tprStack = np.concatenate((tprStack, tpr[..., None]), axis=1)
         # Test model on test data
         predictedLabel = testModel(model, testFeature)
         # Test model on train data - for sanity check
@@ -240,6 +272,8 @@ def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
         # Store predicted and true label in the output directory
         testLabelVec = np.append(testLabelVec, testLabel)
         predLabelVec = np.append(predLabelVec, predictedLabel)
+        # Also store the probability
+        probVec = np.append(probVec, probas)
 
         # Take time
         stop = time.time()
@@ -260,10 +294,39 @@ def mainSVC(feature, label, age, crossVal, kernel, nCors, runParamEst):
               + 'parameter selection took: ' + str(elapsedParam) + ' s\n'
               + 'in total took: ' + str(elapsedFull) + ' s')
 
+    # Done with CV, compute mean_tpr
+    # Now we have to do an ugly trick to actually fit this. The trick is that
+    # the fpr and tpr vector have the be of the same length as the testAgeVec
+    # (or any other final vector - actually just nSubs).
+    desLength = len(testLabelVec)
+    meanFpr = np.linspace(0, 1, desLength)
+    meanTpr = 0.0
+    numCV = fprStack.shape[1]
+    for i in np.arange(numCV):
+        fpr = fprStack[:, i]
+        tpr = tprStack[:, i]
+        meanTpr += interp(meanFpr, fpr, tpr)
+        meanTpr[0] = 0.0
+
+    # divide by number of cv to adjust
+    meanTpr /= numCV
+
     # Done, stack the output together (true label first, then predicted)
+    '''
+    Columns:
+        1) testLabel
+        2) predLabel
+        3) testAge
+        4) probVec for label testLabel = 1
+        5) meanFPR
+        6) meanTPR
+    '''
     outputMatrix = np.concatenate((testLabelVec[..., None],
                                    predLabelVec[..., None],
-                                   testAgeVec[..., None]),
+                                   testAgeVec[..., None],
+                                   probVec[..., None],
+                                   meanFpr[..., None],
+                                   meanTpr[..., None]),
                                   axis=1)
 
     return outputMatrix, trainDict
@@ -295,6 +358,7 @@ def dualPlot(accWithin, accBetween, title):
     plt.close()
 
     return userIn
+
 
 def fitRobust(dataVec, predMat):
     '''
@@ -419,7 +483,7 @@ def networkPlot(networkResults):
 
 def trainPlot(withinDict, betweenDict=None):
     '''
-    Method to visualize the network level results on training data (aka for 
+    Method to visualize the network level results on training data (aka for
     each cross validation loop)
     '''
     predWithin = np.array([])
@@ -619,13 +683,13 @@ def Main():
 
         elif phenoAge > childmax and phenoAge <= adolescentmax:
             print(subject + ' --> adolescent (' + str(phenoAge) + ')')
-            label = 1
+            label = 99
             # Don't use adolescents
             continue
 
         else:
             print(subject + ' --> adult (' + str(phenoAge) + ')')
-            label = 2
+            label = 1
 
         labelStack = np.append(labelStack, label)
 
@@ -701,7 +765,6 @@ def Main():
         print('label: ' + str(labelStack.shape) + '\n'
               + 'age: ' + str(ageStack.shape) + '\n'
               + 'connectome: ' + str(connectomeStack.shape))
-
 
     if doCV == 'loocv':
         crossVal = cv.LeaveOneOut(len(labelStack))

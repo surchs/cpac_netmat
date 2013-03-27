@@ -15,6 +15,7 @@ import nibabel as nib
 from sklearn import svm
 import statsmodels.api as sm
 from scipy import stats as st
+from sklearn.metrics import auc
 import sklearn.grid_search as gs
 from matplotlib import pyplot as plt
 
@@ -456,9 +457,20 @@ def calcPredAcc(trueLabel, predLabel):
 
 def singlePlot(predAcc, title):
     # Plot shit
+    '''
+    Columns:
+        1) testLabel
+        2) predLabel
+        3) testAge
+        4) probVec for label testLabel = 1
+        5) meanFPR
+        6) meanTPR
+    '''
     true = predAcc[:, 0]
     pred = predAcc[:, 1]
     age = predAcc[:, 2]
+    meanFPR = predAcc[:, 4]
+    meanTPR = predAcc[:, 5]
     ratio = calcPredAcc(true, pred)
     print('Prediction accuracy was: ' + str(ratio))
 
@@ -484,6 +496,22 @@ def singlePlot(predAcc, title):
     userIn = raw_input("Press Enter or break...\n")
     plt.close()
 
+    # Now plot the ROC
+    meanAUC = auc(meanFPR, meanTPR)
+    plt.plot(meanFPR, meanTPR, 'r--',
+             label='Mean ROC (area = %0.2f)' % meanAUC, lw=2)
+    plt.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
+             label='Random classifier')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operator curve for %s' % title)
+    plt.legend()
+    plt.show()
+    userIn = raw_input("Press Enter or break...\n")
+    plt.close()
+
     return userIn
 
 
@@ -498,6 +526,15 @@ def networkPlot(networkResults):
         print('Plotting network ' + network + ' now.')
         (withinResult, betweenResult) = networkResults[network]
         # Get it out
+        '''
+        Columns:
+            1) testLabel
+            2) predLabel
+            3) testAge
+            4) probVec for label testLabel = 1
+            5) meanFPR
+            6) meanTPR
+        '''
         wTrue = withinResult[:, 0]
         wPred = withinResult[:, 1]
         bTrue = betweenResult[:, 0]
@@ -656,7 +693,7 @@ def trainSlopePlot(index, within, between=None, title='train slopes',
 
 def trainPlot(withinDict, betweenDict=None):
     '''
-    Method to visualize the network level results on training data (aka for 
+    Method to visualize the network level results on training data (aka for
     each cross validation loop)
     '''
     predWithin = np.array([])
@@ -831,9 +868,9 @@ def Main():
     if doPermut:
         permutDict = loadArchive(pathToPermutationResults)
 
-    ###################################
-    # We do have te results, now plot #
-    ###################################
+    ####################################
+    # We do have the results, now plot #
+    ####################################
     if which == 'mean':
         # Unpack the results
         (withinResult, betweenResult) = netDict
@@ -843,7 +880,6 @@ def Main():
                  + ' predicting age')
         trainPlot(withinTrainDict, betweenTrainDict)
 
-
     # Plot whole brain connectivity results
     if which == 'brain':
         # unpack results
@@ -852,7 +888,6 @@ def Main():
 
         singlePlot(result, 'whole brain SVC plot')
         # accBrain = trainPlot(trainDict)
-
 
     # Plot network connectivity results
     if which == 'network':
