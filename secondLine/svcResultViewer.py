@@ -18,6 +18,7 @@ from scipy import stats as st
 from sklearn.metrics import auc
 import sklearn.grid_search as gs
 from matplotlib import pyplot as plt
+from sklearn.metrics import roc_curve
 
 
 def loadPhenotypicFile(pathToPhenotypicFile):
@@ -286,6 +287,7 @@ def singlePlot(predAcc, title):
     true = predAcc[:, 0]
     pred = predAcc[:, 1]
     age = predAcc[:, 2]
+    prob = predAcc[:, 3]
     meanFPR = predAcc[:, 4]
     meanTPR = predAcc[:, 5]
     ratio = calcPredAcc(true, pred)
@@ -317,6 +319,23 @@ def singlePlot(predAcc, title):
     meanAUC = auc(meanFPR, meanTPR)
     plt.plot(meanFPR, meanTPR, 'r--',
              label='Mean ROC (area = %0.2f)' % meanAUC, lw=2)
+    plt.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
+             label='Random classifier')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.0])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operator curve for %s' % title)
+    plt.legend()
+    plt.show()
+    userIn = raw_input("Press Enter or break...\n")
+    plt.close()
+
+    # Now try the other ROC - the stacked one...
+    fpr, tpr, thresh = roc_curve(true, prob)
+    rocAuc = auc(fpr, tpr)
+    plt.plot(fpr, tpr, 'r--',
+             label='Mean ROC (area = %0.2f)' % rocAuc, lw=2)
     plt.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
              label='Random classifier')
     plt.xlim([0.0, 1.0])
