@@ -529,10 +529,12 @@ def testModel(model, testFeature):
 
 
 def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
-            strat=None, numFeat=200):
+            strat=None, numFeat=200, doBetween=False):
     '''
     short method to handle all the steps in the SVR
     '''
+    if doBetween:
+        print('YoYoYo, got between!')
     crossValDict = makeFolds(feature, age, crossVal)
     # outputDict = {}
     trainDict = {}
@@ -542,6 +544,7 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
     countFeatVec = copy.deepcopy(featureTemplate)
     # Container for the weights
     weightMat = np.array([])
+    top200Weights = np.array([])
 
     for i, run in enumerate(crossValDict.keys()):
         start = time.time()
@@ -590,6 +593,22 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
             tempWeight = copy.deepcopy(featureTemplate)
             weights = model.coef_
             tempWeight[featIndex] = weights
+            if doBetween:
+                # Fork off for the top 200
+                top100ndex = np.argsort(np.abs(tempWeight))[::-1][:100]
+                topWeights = copy.deepcopy(featureTemplate)
+                # Get the weights in
+                topWeights[top100ndex] = tempWeight[top100ndex]
+                stackTopWeight = topWeights[None, ...]
+
+                # Stack them into the storage matrix
+                if top200Weights.size == 0:
+                    top200Weights = stackTopWeight
+                else:
+                    top200Weights = np.concatenate((top200Weights,
+                                                stackTopWeight),
+                                                   axis=0)
+
             stackWeight = tempWeight[None, ...]
             # Stack the weights
             if weightMat.size == 0:
@@ -645,11 +664,16 @@ def mainSVR(feature, age, crossVal, kernel, nCors, runParamEst, alpha=0.05,
         outWeightVec[weightIndex] = np.mean(weightMat[:, weightIndex], axis=0)
         if not doPermute:
             print('# consensus features: ' + str(np.sum(weightIndex)))
+
     outputMatrix = np.concatenate((testAgeVec[..., None],
                                    predAgeVec[..., None]),
                                   axis=1)
     if kernel == 'linear' and not doPermute:
-        return outputMatrix, trainDict, outWeightVec
+        if doBetween:
+            return outputMatrix, trainDict, outWeightVec, top200Weights
+        else:
+
+            return outputMatrix, trainDict, outWeightVec
     else:
         if not doPermute:
             print('kernel is ' + str(kernel) + ' : so no features.')
@@ -1064,6 +1088,7 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
     networkResults = {}
     weightMat = np.zeros_like(connectomeStack[..., 0])
     networkTrainResults = {}
+    top100BetweenDict = {}
 
     for i, network in enumerate(networkNodes.keys()):
         if not doPermute:
@@ -1120,12 +1145,16 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
                              runParamEst,
                              alpha=alpha,
                              strat=featureSelection,
-                             numFeat=desFeat)
+                             numFeat=desFeat,
+                             doBetween=True)
 
         if kernel == 'linear' and not doPermute:
             # unpack the weight vector as well
             withinResult, withinTrainDict, withinWeightVec = svrWithin
-            betweenResult, betweenTrainDict, betweenWeightVec = svrBetween
+            (betweenResult,
+             betweenTrainDict,
+             betweenWeightVec,
+             betweenTop200Mat) = svrBetween
             # Start mapping back the features,
             # within first
             netWeightRows = weightMat[networkIndex]
@@ -1147,7 +1176,57 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
             netWeightRows[:, betweenIndex] = netBetweenMat
             # And now back into the full matrix
             weightMat[networkIndex] = netWeightRows
-            # And done!
+
+            # And now do similar shit for the top100 features across the folds
+            nFolds = betweenTop200Mat.shape[0]
+            topDict = {}
+            for fold in np.arange(nFolds):
+                # Make an empty copy of the network rows
+                netRowsTop100 = np.zeros_like(netWeightRows)
+                # get the row of top200 features of the current fold
+                top100row = betweenTop200Mat[fold, ...]
+                # Map this row back into the between network mat
+                top100mat = top100row.reshape(betweenRows,
+                                               betweenCols)
+                # Map this back into the network rows
+                netRowsTop100[:, betweenIndex] = top100mat
+                # Now on this shit, loop through the fucking networks and
+                # get the number of top100 features in each network
+                for netName in networkNodes.keys():
+                    # get boolean index of network nodes
+                    netIndex = np.in1d(uniqueRoi, netNodes)
+                    # Get the network columns
+                    top100netCols = netRowsTop100[netIndex]
+                    # Make a boolean of non-zero elements
+                    top100nonzero = top100netCols != 0
+                    # make a boolean of positive and negative
+                    top100pos = top100netCols > 0
+                    top100neg = top100netCols < 0
+
+                    # quick sanity check if there are values from inside the
+                    # same network...
+                    if netName == network and np.sum(top100nonzero) > 0:
+                        message = ('network %s is fucked up' % network)
+                        raise Exception(message)
+
+                    # count the elements
+                    ganz = np.sum(top100nonzero)
+                    pos = np.sum(top100pos)
+                    neg = np.sum(top100neg)
+                    # Stack them in a fucking vector
+                    countVec = np.array([ganz, pos, neg])
+                    # see if the network name is already there
+                    if not netName in topDict.keys():
+                        # Start stacking them vertically by folds
+                        topDict[netName] = countVec[None, ...]
+                    else:
+                        tempStack = topDict[netName]
+                        tempStack = np.concatenate((tempStack,
+                                                    countVec[None, ...]),
+                                                   axis=0)
+                        topDict[netName] = tempStack
+                # Done with the fucking folds, time to put it in the big dict
+                top100BetweenDict[network] = topDict
 
         else:
             # just the other stuff
@@ -1168,6 +1247,7 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
         if kernel == 'linear' and not doPermute:
             status = saveTextFile(pathToWeightMatrixFile, weightMat)
             print(status)
+            status = saveOutput(pathToTopDict, top100BetweenDict)
 
     if doPlot:
         # Done with running analysis. Plotting by network now
@@ -1356,11 +1436,12 @@ def Main():
     global pathToPredictionOutputFile
     global pathToPermutationOutputFile
     global pathToWeightMatrixFile
+    global pathToTopDict
     global stratStr
 
     # Define local variables
     doNorm = False
-    runwhat = 'brain'
+    runwhat = 'network'
     numPermute = 100
     which = 'wave'
 
@@ -1389,6 +1470,8 @@ def Main():
                                                (outputBaseName + '.permut'))
     pathToWeightMatrixFile = os.path.join(pathToOutputDir,
                                           (outputBaseName + '.weights'))
+    pathToTopDict = os.path.join(pathToOutputDir,
+                                 (outputBaseName + '.top'))
 
     # Check the fucking paths
     if  (not which in pathToConnectomeDir or
