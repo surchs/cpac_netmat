@@ -264,15 +264,31 @@ def calcPredAcc(trueLabel, predLabel):
               + '    pred: ' + str(len(predLabel)))
 
     else:
-        numLabels = len(trueLabel)
-        corrIndex = trueLabel == predLabel
-        numCorr = float(np.sum(corrIndex))
-        ratio = numCorr / numLabels
+        # get truth
+        totalPos = np.sum(trueLabel == 1)
+        totalNeg = np.sum(trueLabel == 0)
 
-        return ratio
+        # Get index of correct predictions
+        trueDex = trueLabel == predLabel
+        # and of false
+        falseDex = trueLabel != predLabel
+        # now get labels
+        truePos = np.sum(predLabel[trueDex] == 1)
+        trueNeg = np.sum(predLabel[trueDex] == 0)
+        falsePos = np.sum(predLabel[falseDex] == 1)
+        falseNeg = np.sum(predLabel[falseDex] == 0)
+
+        # get sensitivity and specificity
+        sens = float(truePos) / (truePos + falseNeg)
+        spec = float(trueNeg) / (trueNeg + falsePos)
+
+        # get accuracy
+        acc = float(truePos + trueNeg) / (totalPos + totalNeg)
+
+        return acc, sens, spec
 
 
-def singlePlot(predAcc, title):
+def singlePlot(predAcc, title, imageDir):
     # Plot shit
     '''
     Columns:
@@ -290,13 +306,23 @@ def singlePlot(predAcc, title):
     prob = predAcc[:, 3]
     meanFPR = predAcc[:, 4]
     meanTPR = predAcc[:, 5]
-    ratio = calcPredAcc(true, pred)
-    print('Prediction accuracy was: ' + str(ratio))
+    acc, sens, spec = calcPredAcc(true, pred)
+    print('Prediction accuracy was: ' + str(acc))
 
-    plt.bar(1, ratio, align='center')
-    plt.title(title)
-    plt.show()
-    userIn = raw_input("Press Enter or break...\n")
+    fig1 = plt.figure(1, (10, 10), dpi=150)
+    subPlot = fig1.add_subplot(111)
+    subPlot.bar(1, acc, align='center')
+    fig1.suptitle(title)
+
+    fileName = ('predictionACC.png')
+    filePath = os.path.join(imageDir, fileName)
+
+    if doSave:
+        fig1.savefig(filePath, dpi=150)
+
+    if doPlot:
+        plt.show()
+        userIn = raw_input("Press Enter or break...\n")
     plt.close()
 
     # offset for better display
@@ -305,53 +331,85 @@ def singlePlot(predAcc, title):
     ymin = true.min() - 1
     xmax = age.max() - 0.1
     xmin = age.min() + 0.1
-    plt.plot(age, pred, 'r.', label='pred')
-    plt.plot(age, true, 'g.', label='true')
-    plt.xlim(xmin, xmax)
-    plt.ylim(ymin, ymax)
-    plt.title(title + ' classification')
-    plt.legend(loc='lower right')
-    plt.show()
-    userIn = raw_input("Press Enter or break...\n")
+
+    fig2 = plt.figure(2, (10, 10), dpi=150)
+    subPlot2 = fig2.add_subplot(111)
+    subPlot2.plot(age, pred, 'r.', label='pred')
+    subPlot2.plot(age, true, 'g.', label='true')
+    subPlot2.set_xlim(xmin, xmax)
+    subPlot2.set_ylim(ymin, ymax)
+    subPlot2.legend(loc='lower right')
+    fig2.suptitle(title + ' classification')
+
+    fileName = 'classificationPLOT.png'
+    filePath = os.path.join(imageDir, fileName)
+
+    if doSave:
+        fig2.savefig(filePath, dpi=150)
+
+    if doPlot:
+        plt.show()
+        userIn = raw_input("Press Enter or break...\n")
     plt.close()
 
     # Now plot the ROC
     meanAUC = auc(meanFPR, meanTPR)
-    plt.plot(meanFPR, meanTPR, 'r--',
+
+    fig3 = plt.figure(3, (10, 10), dpi=150)
+    subPlot3 = fig3.add_subplot(111)
+    subPlot3.plot(meanFPR, meanTPR, 'r--',
              label='Mean ROC (area = %0.2f)' % meanAUC, lw=2)
-    plt.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
+    subPlot3.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
              label='Random classifier')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.0])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver operator curve for %s' % title)
-    plt.legend(loc='lower right')
-    plt.show()
-    userIn = raw_input("Press Enter or break...\n")
+    subPlot3.set_xlim([0.0, 1.0])
+    subPlot3.set_ylim([0.0, 1.0])
+    subPlot3.set_xlabel('False Positive Rate')
+    subPlot3.set_ylabel('True Positive Rate')
+    subPlot3.legend(loc='lower right')
+    fig3.suptitle('Receiver operator curve for %s' % title)
+
+    fileName = 'rocONE.png'
+    filePath = os.path.join(imageDir, fileName)
+
+    if doSave:
+        fig3.savefig(filePath, dpi=150)
+
+    if doPlot:
+        plt.show()
+        userIn = raw_input("Press Enter or break...\n")
     plt.close()
 
     # Now try the other ROC - the stacked one...
     fpr, tpr, thresh = roc_curve(true, prob)
     rocAuc = auc(fpr, tpr)
-    plt.plot(fpr, tpr, 'r--',
-             label='Mean ROC (area = %0.2f)' % rocAuc, lw=2)
-    plt.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
-             label='Random classifier')
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.0])
-    plt.xlabel('False Positive Rate')
-    plt.ylabel('True Positive Rate')
-    plt.title('Receiver operator curve for %s' % title)
-    plt.legend(loc='lower right')
-    plt.show()
-    userIn = raw_input("Press Enter or break...\n")
+
+    fig4 = plt.figure(4, (10, 10), dpi=150)
+    subPlot4 = fig4.add_subplot(111)
+    subPlot4.plot(fpr, tpr, 'r--',
+                  label='Mean ROC (area = %0.2f)' % rocAuc, lw=2)
+    subPlot4.plot((1 - spec), sens, 'bo', label=('%0.2f / %0.2f' % (sens, spec)))
+    subPlot4.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
+                  label='Random classifier')
+    subPlot4.set_xlim([0.0, 1.0])
+    subPlot4.set_ylim([0.0, 1.0])
+    subPlot4.set_xlabel('False Positive Rate')
+    subPlot4.set_ylabel('True Positive Rate')
+    fig4.suptitle('Receiver operator curve for %s' % title)
+    subPlot4.legend(loc='lower right')
+
+    fileName = 'rocTWO.png'
+    filePath = os.path.join(imageDir, fileName)
+
+    if doSave:
+        fig4.savefig(filePath, dpi=150)
+
+    if doPlot:
+        plt.show()
+        userIn = raw_input("Press Enter or break...\n")
     plt.close()
 
-    return userIn
 
-
-def networkPlot(networkResults):
+def networkPlot(networkResults, imageDir):
     '''
     Method to visualize the network level results
     '''
@@ -359,20 +417,42 @@ def networkPlot(networkResults):
     betweenStack = np.array([])
     netNames = []
     # Prepare ROC figure
-    fig2, (within2, between2) = plt.subplots(1, 2, sharex=False, sharey=False)
+    figROC, (within2, between2) = plt.subplots(1, 2, sharex=False, sharey=False)
+    figROC.set_size_inches(20.5, 10.5)
+
     within2.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
                  label='Random classifier')
+    within2.plot([0, 1], [1, 0], ':', c=(0.6, 0.6, 0.6),
+                 label='unbiased')
     within2.set_xlabel('False Positive Rate')
     within2.set_ylabel('True Positive Rate')
     within2.set_title('ROCs for within network connections')
     between2.plot([0, 1], [0, 1], '--', c=(0.6, 0.6, 0.6),
                  label='Random classifier')
+    between2.plot([0, 1], [1, 0], ':', c=(0.6, 0.6, 0.6),
+                 label='unbiased')
     between2.set_xlabel('False Positive Rate')
     between2.set_ylabel('True Positive Rate')
     between2.set_title('ROCs for between network connections')
-    fig2.suptitle('ROC plots')
+    figROC.suptitle('ROC plots')
 
-    for network in networkResults.keys():
+    # Prepare sens, spec, acc figure
+    figAcc, (withinAcc, betweenAcc) = plt.subplots(1, 2, sharex=False, sharey=False)
+    figAcc.set_size_inches(20.5, 10.5)
+    wSensList = []
+    wAccList = []
+    wSpecList = []
+    bSensList = []
+    bAccList = []
+    bSpecList = []
+    netNames = networkResults.keys()
+    numNets = len(netNames)
+    # Space per network
+    spacing = 2
+    # width per bar
+    width = 0.5
+
+    for network in netNames:
         print('Plotting network ' + network + ' now.')
         (withinResult, betweenResult) = networkResults[network]
         # Get it out
@@ -396,39 +476,86 @@ def networkPlot(networkResults):
         bMeanFPR = betweenResult[:, 4]
         bMeanTPR = betweenResult[:, 5]
 
+        # Get ratio
+        wAcc, wSens, wSpec = calcPredAcc(wTrue, wPred)
+        wSensList.append(wSens)
+        wAccList.append(wAcc)
+        wSpecList.append(wSpec)
+
+        bAcc, bSens, bSpec = calcPredAcc(bTrue, bPred)
+        bSensList.append(bSens)
+        bAccList.append(bAcc)
+        bSpecList.append(bSpec)
+
         # Prepare ROC
         wFpr, wTpr, WThresh = roc_curve(wTrue, wProb)
         wRocAuc = auc(wFpr, wTpr)
 
         within2.plot(wFpr, wTpr, lw=1,
                      label=('%s (%0.2f)' % (network,
-                                                                   wRocAuc)))
+                                            wRocAuc)))
+        within2.plot((1 - wSpec), wSens, 'o',
+                     label=('%s (%0.2f, %0.2f)' % (network, wSens, wSpec)))
 
         bFpr, bTpr, bThresh = roc_curve(bTrue, bProb)
         bRocAuc = auc(bFpr, bTpr)
         between2.plot(bFpr, bTpr, lw=1,
                       label=('%s (%0.2f)' % (network,
-                                                                    bRocAuc)))
+                                             bRocAuc)))
+        between2.plot((1 - bSpec), bSens, 'o',
+                      label=('%s (%0.2f, %0.2f)' % (network, bSens, bSpec)))
 
-        withinRatio = calcPredAcc(wTrue, wPred)
-        betweenRatio = calcPredAcc(bTrue, bPred)
-        withinStack = np.append(withinStack, withinRatio)
-        betweenStack = np.append(betweenStack, betweenRatio)
-        netNames.append(network)
-        print('    within: ' + str(withinRatio) + '\n'
-              '    between: ' + str(betweenRatio))
+
+        withinStack = np.append(withinStack, wAcc)
+        betweenStack = np.append(betweenStack, bAcc)
+        print('    within: t %0.2f (a %0.2f / c %0.2f)\n ' % (wAcc, wSens, wSpec)
+              + '    between: t %0.2f (a %0.2f / c %0.2f) ' % (bAcc, bSens, bSpec))
 
     # Done with ROC, plot
     within2.legend(loc='lower right')
     between2.legend(loc='lower right')
-    plt.show()
-    raw_input("Press Enter...\n")
+
+    # Done with acc, sens, spec -> plot
+    index = np.arange(numNets) * spacing
+
+    withinAcc.bar(index, wSensList, width, color='g', label='sensitivity')
+    withinAcc.bar(index + width, wAccList, width, color='b', label='accuracy')
+    withinAcc.bar(index + 2 * width, wSpecList, width, color='r', label='specificity')
+    withinAcc.set_xticks(index + 0.5 * spacing)
+    withinAcc.set_xticklabels(netNames)
+    withinAcc.legend()
+
+    betweenAcc.bar(index, bSensList, width, color='g', label='sensitivity')
+    betweenAcc.bar(index + width, bAccList, width, color='b', label='accuracy')
+    betweenAcc.bar(index + 2 * width, bSpecList, width, color='r', label='specificity')
+    betweenAcc.set_xticks(index + 0.5 * spacing)
+    betweenAcc.set_xticklabels(netNames)
+    betweenAcc.legend()
+
+    figAcc.autofmt_xdate()
+    figAcc.suptitle('classtest')
+
+    fileAccName = 'networkTest.png'
+    fileName = 'networkROC.png'
+    filePath = os.path.join(imageDir, fileName)
+    fileAccPath = os.path.join(imageDir, fileAccName)
+
+    if doSave:
+        print('Saving %s' % filePath)
+        figROC.savefig(filePath, dpi=150)
+        print('Saving %s' % fileAccPath)
+        figAcc.savefig(fileAccPath, dpi=150)
+
+    if doPlot:
+        plt.show()
+        raw_input("Press Enter...\n")
     plt.close()
 
     # Done, plot
     index = np.arange(len(withinStack)) + 1
 
-    fig, (within, between) = plt.subplots(1, 2, sharex=False, sharey=False)
+    fig, (within, between) = plt.subplots(1, 2, sharex=False, sharey=True)
+    fig.set_size_inches(20.5, 10.5)
     within.bar(index, withinStack, align='center')
     between.bar(index, betweenStack, align='center')
 
@@ -447,8 +574,16 @@ def networkPlot(networkResults):
 
     fig.suptitle('Network level classification results')
     fig.autofmt_xdate()
-    plt.show()
-    raw_input("Press Enter...\n")
+    fileName = 'networkAccuracy.png'
+    filePath = os.path.join(imageDir, fileName)
+
+    if doSave:
+        print('Saving %s' % filePath)
+        fig.savefig(filePath, dpi=150)
+
+    if doPlot:
+        plt.show()
+        raw_input("Press Enter...\n")
     plt.close()
 
 
@@ -680,7 +815,7 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
-    pathToFiles = '/home2/surchs/secondLine/SVC/wave/dos160/kfold_10_linear_True_brain__connectome_glob_corr'
+    pathToFiles = '/home2/surchs/secondLine/SVC/wave/dos160/kfold_10_linear_True_network__connectome_glob_corr'
 
     print('\nLooking for files')
     pred = glob.glob(pathToFiles + '/*.pred')
@@ -728,6 +863,8 @@ def Main():
 
     # Define parameters
     global doPermut
+    global doSave
+    global doPlot
     doPermut = False
     doNet = True
     doTrain = False
@@ -735,7 +872,7 @@ def Main():
     doPlot = False
     doSave = True
 
-    which = 'brain'
+    which = 'network'
 
     # Read input files
     netDict = loadArchive(pathToNetworkResults)
@@ -763,7 +900,7 @@ def Main():
         result = netDict
         trainDict = trainDict
 
-        singlePlot(result, 'whole brain SVC plot')
+        singlePlot(result, 'whole brain SVC plot', imageDir)
         # accBrain = trainPlot(trainDict)
 
     # Plot network connectivity results
@@ -772,7 +909,7 @@ def Main():
         networkResults = netDict
         networkTrainResults = trainDict
 
-        networkPlot(networkResults)
+        networkPlot(networkResults, imageDir)
         '''
         for network in networkTrainResults:
             print('Plotting training on ' + network)

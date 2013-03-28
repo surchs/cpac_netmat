@@ -337,7 +337,7 @@ def Main():
 
     connectomeSuffix = '_connectome_glob_corr.txt'
 
-    runwhat = 'corr'
+    runwhat = 'glm'
     doPlot = False
 
     # Define parameters
@@ -345,8 +345,8 @@ def Main():
     childmax = 12.0
     adolescentmax = 18.0
     doClasses = False
-    doFDR = False
-    doNorm = True
+    doFDR = True
+    doNorm = False
     which = 'wave'
 
     stratStr = (str(runwhat) + '_' + str(doFDR) + '_' + str(alpha)

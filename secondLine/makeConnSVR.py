@@ -1342,15 +1342,15 @@ def Main():
     global doPermute
     doCV = 'kfold'
     kfold = 10
-    nCors = 20
+    nCors = 10
     kernel = 'linear'
     runParamEst = True
     doPlot = False
-    doSave = False
-    featureSelection = None
+    doSave = True
+    featureSelection = 'rfe'
     alpha = 0.05
     desFeat = 200
-    doPermute = True
+    doPermute = False
 
     global pathToTrainOutputFile
     global pathToPredictionOutputFile
@@ -1359,7 +1359,7 @@ def Main():
     global stratStr
 
     # Define local variables
-    doNorm = True
+    doNorm = False
     runwhat = 'brain'
     numPermute = 100
     which = 'wave'

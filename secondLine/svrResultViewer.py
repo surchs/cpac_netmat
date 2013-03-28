@@ -851,7 +851,7 @@ def saveOutput(outputFilePath, output):
 
 def Main():
     # Define the inputs
-    pathToFiles = '/home2/surchs/secondLine/SVM/wave/dos160/kfold_10_linear_True_rfe_network__connectome_glob_corr'
+    pathToFiles = '/home2/surchs/secondLine/SVM/wave/dos160/kfold_10_linear_True_rfe_brain__connectome_glob_corr'
 
     print('\nLooking for files')
     pred = glob.glob(pathToFiles + '/*.pred')
@@ -899,14 +899,14 @@ def Main():
 
     # Define parameters
     global doPermut
-    doPermut = False
+    doPermut = True
     doNet = True
     doTrain = False
 
     doPlot = False
     doSave = True
 
-    which = 'network'
+    which = 'brain'
 
 
     # Read input files

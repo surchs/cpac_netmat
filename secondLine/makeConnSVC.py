@@ -607,8 +607,8 @@ def Main():
     kernel = 'linear'
     runParamEst = True
     which = 'brain'
-    doPlot = True
-    doNorm = True
+    doPlot = False
+    doNorm = False
     what = 'wave'
 
     childmax = 12.0
