@@ -1155,6 +1155,11 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
              betweenTrainDict,
              betweenWeightVec,
              betweenTop200Mat) = svrBetween
+            # Check if the top features are nonzero
+            if len(np.unique(betweenTop200Mat)) > 1:
+                print('the top features are here')
+            else:
+                print('top features are a no show')
             # Start mapping back the features,
             # within first
             netWeightRows = weightMat[networkIndex]
@@ -1185,18 +1190,20 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
                 netRowsTop100 = np.zeros_like(netWeightRows)
                 # get the row of top200 features of the current fold
                 top100row = betweenTop200Mat[fold, ...]
+
                 # Map this row back into the between network mat
                 top100mat = top100row.reshape(betweenRows,
-                                               betweenCols)
+                                              betweenCols)
                 # Map this back into the network rows
                 netRowsTop100[:, betweenIndex] = top100mat
                 # Now on this shit, loop through the fucking networks and
                 # get the number of top100 features in each network
                 for netName in networkNodes.keys():
+                    netNod = networkNodes[netName]
                     # get boolean index of network nodes
-                    netIndex = np.in1d(uniqueRoi, netNodes)
+                    netIndex = np.in1d(uniqueRoi, netNod)
                     # Get the network columns
-                    top100netCols = netRowsTop100[netIndex]
+                    top100netCols = netRowsTop100[:, netIndex]
                     # Make a boolean of non-zero elements
                     top100nonzero = top100netCols != 0
                     # make a boolean of positive and negative
@@ -1213,6 +1220,9 @@ def runNetwork(connectomeStack, ageStack, networkNodes, uniqueRoi, crossVal):
                     ganz = np.sum(top100nonzero)
                     pos = np.sum(top100pos)
                     neg = np.sum(top100neg)
+                    print('all %f' % ganz)
+                    print('pos %f' % pos)
+                    print('neg %f' % neg)
                     # Stack them in a fucking vector
                     countVec = np.array([ganz, pos, neg])
                     # see if the network name is already there
@@ -1422,15 +1432,15 @@ def Main():
     global doPermute
     doCV = 'kfold'
     kfold = 10
-    nCors = 10
+    nCors = 15
     kernel = 'linear'
     runParamEst = True
     doPlot = False
-    doSave = True
+    doSave = False
     featureSelection = 'rfe'
     alpha = 0.05
     desFeat = 200
-    doPermute = False
+    doPermute = True
 
     global pathToTrainOutputFile
     global pathToPredictionOutputFile
